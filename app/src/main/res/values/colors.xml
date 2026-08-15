@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="warm_cream">#FFFBF5ED</color>
+    <color name="warm_cream_dark">#FFF5ECE1</color>
+    <color name="warm_orange">#FFFF8C42</color>
+    <color name="warm_orange_light">#FFFFA673</color>
+    <color name="warm_orange_dark">#FFE07535</color>
+    <color name="warm_teal">#FF4DB6AC</color>
+    <color name="warm_teal_light">#FF80CBC4</color>
+    <color name="warm_teal_dark">#FF00897B</color>
+    <color name="warm_pink">#FFF8BBD9</color>
+    <color name="warm_purple">#FFCE93D8</color>
+    <color name="warm_lavender">#FFE1BEE7</color>
+    <color name="soft_yellow">#FFFFECB3</color>
+    <color name="soft_peach">#FFFFCCBC</color>
+    <color name="gentle_gray">#FFE0E0E0</color>
+    <color name="gentle_gray_dark">#FFBDBDBD</color>
+    <color name="text_primary">#FF212121</color>
+    <color name="text_secondary">#FF757575</color>
+    <color name="text_on_primary">#FFFFFFFF</color>
+    <color name="error_red">#FFEF5350</color>
+    <color name="warning_amber">#FFFFC107</color>
+    <color name="success_green">#FF66BB6A</color>
+    <color name="card_background">#FFFFFFFF</color>
+    <color name="surface_variant">#FFF5F5F5</color>
+    <color name="surface_variant_dark">#FF424242</color>
+    <color name="primary">@color/warm_orange</color>
+    <color name="primary_variant">@color/warm_orange_dark</color>
+    <color name="on_primary">#FFFFFFFF</color>
+    <color name="secondary">@color/warm_teal</color>
+    <color name="on_secondary">#FFFFFFFF</color>
+</resources>

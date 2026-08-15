@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WarmWord</string>
+    <string name="app_name_short">WarmWord</string>
+    <string name="model_download_channel_name">Model Download</string>
+    <string name="model_download_channel_description">Downloads AI model files for on-device inference</string>
+    <string name="downloading_model">Downloading model</string>
+    <string name="downloading_model_named">Downloading %1$s</string>
+    <string name="download_progress">Download progress: %1$d%%</string>
+    <string name="places_api_key">YOUR_GOOGLE_PLACES_API_KEY</string>
+    <string name="notification_download_title">Downloading AI model</string>
+    <string name="notification_download_desc">Downloading WarmWord AI model (%1$d%% complete)</string>
+</resources>

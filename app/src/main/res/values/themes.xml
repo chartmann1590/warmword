@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.WarmWord" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/warm_orange</item>
+        <item name="colorOnPrimary">@color/text_on_primary</item>
+        <item name="colorSecondary">@color/warm_teal</item>
+        <item name="android:statusBarColor">?attr/colorPrimaryContainer</item>
+        <item name="android:navigationBarColor">?attr/colorSurface</item>
+    </style>
+
+    <style name="Theme.WarmWord.Splash" parent="Theme.WarmWord">
+        <item name="windowSplashScreenBackground">@color/warm_cream</item>
+        <item name="postSplashScreenTheme">@style/Theme.WarmWord</item>
+    </style>
+</resources>

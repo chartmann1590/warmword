@@ -1,0 +1,18 @@
+build/
+.gradle/
+.kotlin/
+local.properties
+*.iml
+.idea/
+
+# Signing / secrets - never commit these
+*.jks
+*.keystore
+keystore.properties
+*.env
+.env.*
+
+# Cloudflare Worker
+cloudflare-worker/node_modules/
+cloudflare-worker/.wrangler/
+cloudflare-worker/.dev.vars

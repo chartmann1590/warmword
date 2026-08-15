@@ -1,0 +1,15 @@
+name = "warmword-key-proxy"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# Secrets (never put real values here - set them via `wrangler secret put`):
+#   wrangler secret put PLACES_API_KEY
+#   wrangler secret put MAPS_API_KEY
+#
+# The Android app never holds these keys. It calls this Worker's public URL instead;
+# the Worker attaches the real key server-side and forwards the request to Google.
+
+[vars]
+# Comma-separated list of Android package names / app check tokens allowed to call this
+# worker. Tighten this before going live - see ALLOWED_ORIGIN check in src/index.js.
+ALLOWED_APP_ID = "com.charles.warmwords.app"

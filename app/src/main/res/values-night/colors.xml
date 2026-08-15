@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="warm_cream">#FFFBF5ED</color>
+    <color name="warm_orange">#FFFF8C42</color>
+    <color name="warm_teal">#FF4DB6AC</color>
+    <color name="primary">@color/warm_orange</color>
+    <color name="on_primary">#FF212121</color>
+    <color name="secondary">@color/warm_teal</color>
+    <color name="on_secondary">#FF212121</color>
+</resources>
