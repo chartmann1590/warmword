@@ -89,20 +89,37 @@ class ChatViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(isSpeaking = speaking)
             }
         }
-        val modelFile = File(
-            context.getExternalFilesDir(null),
-            "models/${ModelConfig.MODEL_VERSION}/${ModelConfig.MODEL_FILE_NAME}"
-        )
-        if (modelFile.exists()) {
-            initializeModel(modelFile.absolutePath) { success ->
-                Log.d("ChatViewModel", "Model initialization result: $success")
-                if (success) analyticsManager.logEvent(AnalyticsManager.EVENT_SESSION_STARTED)
+        if (liteRtLmManager.isInitialized()) {
+            // LiteRtLmManager is a Hilt singleton, so if it's already initialized (e.g. this
+            // ChatViewModel was recreated by Compose Navigation while the underlying engine
+            // stayed alive), the existing Conversation still holds the model's in-context
+            // memory of everything said so far. Re-running initializeModel() here would call
+            // LiteRtLmManager.initialize(), which always release()s and recreates the
+            // Conversation from scratch - silently wiping that memory while the DB-backed
+            // message list on screen still shows the old messages, making the AI look like it
+            // "forgot" the conversation even though nothing else changed. Just sync UI state.
+            Log.d("ChatViewModel", "Engine already initialized, reusing existing conversation")
+            viewModelScope.launch {
+                val persona = SystemPrompt.byId(userProfileUseCases.getProfile()?.selectedPersonaId)
+                lastKnownPersonaId = persona.id
+                _uiState.value = _uiState.value.copy(isModelReady = true, persona = persona)
             }
         } else {
-            Log.e("ChatViewModel", "Model file not found at ${modelFile.absolutePath}")
-            _uiState.value = _uiState.value.copy(
-                isModelReady = false
+            val modelFile = File(
+                context.getExternalFilesDir(null),
+                "models/${ModelConfig.MODEL_VERSION}/${ModelConfig.MODEL_FILE_NAME}"
             )
+            if (modelFile.exists()) {
+                initializeModel(modelFile.absolutePath) { success ->
+                    Log.d("ChatViewModel", "Model initialization result: $success")
+                    if (success) analyticsManager.logEvent(AnalyticsManager.EVENT_SESSION_STARTED)
+                }
+            } else {
+                Log.e("ChatViewModel", "Model file not found at ${modelFile.absolutePath}")
+                _uiState.value = _uiState.value.copy(
+                    isModelReady = false
+                )
+            }
         }
     }
 
@@ -182,6 +199,7 @@ class ChatViewModel @Inject constructor(
     fun clearChat() {
         viewModelScope.launch {
             chatUseCases.deleteAll()
+            liteRtLmManager.resetConversation()
         }
     }
 

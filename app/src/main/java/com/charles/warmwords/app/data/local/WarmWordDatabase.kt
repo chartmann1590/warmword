@@ -10,12 +10,14 @@ import com.charles.warmwords.app.data.local.dao.ChatDao
 import com.charles.warmwords.app.data.local.dao.CrisisResourceDao
 import com.charles.warmwords.app.data.local.dao.JournalDao
 import com.charles.warmwords.app.data.local.dao.MoodDao
+import com.charles.warmwords.app.data.local.dao.SessionNoteDao
 import com.charles.warmwords.app.data.local.dao.SessionReminderDao
 import com.charles.warmwords.app.data.local.dao.UserProfileDao
 import com.charles.warmwords.app.data.local.entity.ChatMessage
 import com.charles.warmwords.app.data.local.entity.CrisisResource
 import com.charles.warmwords.app.data.local.entity.JournalEntry
 import com.charles.warmwords.app.data.local.entity.MoodLog
+import com.charles.warmwords.app.data.local.entity.SessionNote
 import com.charles.warmwords.app.data.local.entity.SessionReminder
 import com.charles.warmwords.app.data.local.entity.UserProfile
 
@@ -41,9 +43,10 @@ class Converters {
         ChatMessage::class,
         UserProfile::class,
         CrisisResource::class,
-        SessionReminder::class
+        SessionReminder::class,
+        SessionNote::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -54,4 +57,5 @@ abstract class WarmWordDatabase : RoomDatabase() {
     abstract fun userProfileDao(): UserProfileDao
     abstract fun crisisResourceDao(): CrisisResourceDao
     abstract fun sessionReminderDao(): SessionReminderDao
+    abstract fun sessionNoteDao(): SessionNoteDao
 }

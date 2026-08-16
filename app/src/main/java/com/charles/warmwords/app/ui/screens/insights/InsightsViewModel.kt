@@ -2,11 +2,14 @@ package com.charles.warmwords.app.ui.screens.insights
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.charles.warmwords.app.ai.LiteRtLmManager
 import com.charles.warmwords.app.data.model.MoodLogModel
+import com.charles.warmwords.app.data.model.SessionNoteModel
 import com.charles.warmwords.app.data.model.SessionReminderModel
 import com.charles.warmwords.app.domain.usecase.ChatUseCases
 import com.charles.warmwords.app.domain.usecase.JournalUseCases
 import com.charles.warmwords.app.domain.usecase.MoodUseCases
+import com.charles.warmwords.app.domain.usecase.SessionNoteUseCases
 import com.charles.warmwords.app.domain.usecase.SessionReminderUseCases
 import com.charles.warmwords.app.reminders.ReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,6 +31,8 @@ data class InsightsUiState(
     val totalChatSessions: Int = 0,
     val totalMessages: Int = 0,
     val recentSessions: List<ChatSessionSummary> = emptyList(),
+    val sessionNotes: Map<Long, String> = emptyMap(),
+    val notesBeingGenerated: Set<Long> = emptySet(),
     val upcomingReminders: List<SessionReminderModel> = emptyList(),
     val isLoading: Boolean = true
 )
@@ -38,6 +43,8 @@ class InsightsViewModel @Inject constructor(
     private val moodUseCases: MoodUseCases,
     private val chatUseCases: ChatUseCases,
     private val sessionReminderUseCases: SessionReminderUseCases,
+    private val sessionNoteUseCases: SessionNoteUseCases,
+    private val liteRtLmManager: LiteRtLmManager,
     private val reminderScheduler: ReminderScheduler
 ) : ViewModel() {
 
@@ -50,6 +57,13 @@ class InsightsViewModel @Inject constructor(
             sessionReminderUseCases.allReminders.collect { reminders ->
                 val upcoming = reminders.filter { it.timestamp > System.currentTimeMillis() }
                 _uiState.value = _uiState.value.copy(upcomingReminders = upcoming)
+            }
+        }
+        viewModelScope.launch {
+            sessionNoteUseCases.allNotes.collect { notes ->
+                _uiState.value = _uiState.value.copy(
+                    sessionNotes = notes.associate { it.sessionStartTimestamp to it.note }
+                )
             }
         }
     }
@@ -100,7 +114,7 @@ class InsightsViewModel @Inject constructor(
             val allMessages = chatUseCases.allMessages.first()
             val sessions = buildChatSessions(allMessages)
 
-            _uiState.value = InsightsUiState(
+            _uiState.value = _uiState.value.copy(
                 weeklyMoodData = weeklyMoodData,
                 totalEntries = totalEntries,
                 currentStreak = streak,
@@ -109,9 +123,34 @@ class InsightsViewModel @Inject constructor(
                 totalChatSessions = sessions.size,
                 totalMessages = allMessages.size,
                 recentSessions = sessions.take(10),
-                upcomingReminders = _uiState.value.upcomingReminders,
                 isLoading = false
             )
+
+            generateMissingNotes(sessions.take(10))
+        }
+    }
+
+    /** Asks the on-device model for a short note on any finished session that doesn't have one yet. */
+    private fun generateMissingNotes(sessions: List<ChatSessionSummary>) {
+        if (!liteRtLmManager.isInitialized()) return
+        val existingNotes = _uiState.value.sessionNotes
+        val toGenerate = sessions.filter { !it.isLikelyOngoing && existingNotes[it.startTimestamp] == null }
+
+        toGenerate.forEach { session ->
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(
+                    notesBeingGenerated = _uiState.value.notesBeingGenerated + session.startTimestamp
+                )
+                val note = liteRtLmManager.summarizeConversation(session.transcript)
+                if (!note.isNullOrBlank()) {
+                    sessionNoteUseCases.saveNote(
+                        SessionNoteModel(sessionStartTimestamp = session.startTimestamp, note = note)
+                    )
+                }
+                _uiState.value = _uiState.value.copy(
+                    notesBeingGenerated = _uiState.value.notesBeingGenerated - session.startTimestamp
+                )
+            }
         }
     }
 

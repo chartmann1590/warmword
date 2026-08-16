@@ -13,9 +13,12 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.resume
 
 @Singleton
 class LiteRtLmManager @Inject constructor() {
@@ -202,6 +205,61 @@ class LiteRtLmManager @Inject constructor() {
 
     fun isInitialized(): Boolean = engine != null && conversation != null
 
+    /**
+     * Summarizes an already-finished chat transcript into a short third-person note, using a
+     * throwaway Conversation on the same Engine so it never touches (or clears) the user's live
+     * chat history/context in [conversation].
+     */
+    @WorkerThread
+    suspend fun summarizeConversation(transcript: String): String? {
+        val engineRef = engine ?: return null
+        if (transcript.isBlank()) return null
+
+        return withContext(Dispatchers.IO) {
+            var summaryConversation: com.google.ai.edge.litertlm.Conversation? = null
+            try {
+                summaryConversation = engineRef.createConversation(
+                    com.google.ai.edge.litertlm.ConversationConfig(
+                        systemInstruction = com.google.ai.edge.litertlm.Contents.of(SUMMARY_SYSTEM_PROMPT),
+                        samplerConfig = com.google.ai.edge.litertlm.SamplerConfig(
+                            topK = 40,
+                            topP = 0.9,
+                            temperature = 0.3
+                        )
+                    )
+                )
+
+                val result = StringBuilder()
+                suspendCancellableCoroutine<Unit> { cont ->
+                    val callback = object : MessageCallback {
+                        override fun onMessage(message: Message) {
+                            result.append(extractText(message))
+                        }
+                        override fun onDone() {
+                            if (cont.isActive) cont.resume(Unit)
+                        }
+                        override fun onError(throwable: Throwable) {
+                            Log.e(TAG, "summarizeConversation error", throwable)
+                            if (cont.isActive) cont.resume(Unit)
+                        }
+                    }
+                    summaryConversation.sendMessageAsync(transcript, callback)
+                }
+
+                result.toString().trim().ifBlank { null }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to summarize conversation", e)
+                null
+            } finally {
+                try {
+                    summaryConversation?.close()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to close summary conversation", e)
+                }
+            }
+        }
+    }
+
     fun resetConversation(newSystemPrompt: String? = null) {
         val engineRef = engine ?: return
         if (newSystemPrompt != null) {
@@ -245,5 +303,8 @@ class LiteRtLmManager @Inject constructor() {
 
     companion object {
         private const val TAG = "LiteRtLmManager"
+        private const val SUMMARY_SYSTEM_PROMPT = """
+You write short clinical-style notes summarizing a mental health companion app conversation. You will be given a transcript of "User" and "WarmWord" (the AI companion) turns. Write a 1-2 sentence third-person note capturing the main topic, feeling, or theme the user brought up, and anything notable that was worked through - like a brief clinician's chart note, not a transcript recap. Do not use the words "User" or "WarmWord" - write it as flowing prose (e.g. "Discussed anxiety about an upcoming exam; explored reframing catastrophic thoughts."). Do not add commentary, disclaimers, or a title - output only the note itself.
+"""
     }
 }

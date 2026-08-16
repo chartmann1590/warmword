@@ -8,6 +8,7 @@ import com.charles.warmwords.app.data.local.dao.ChatDao
 import com.charles.warmwords.app.data.local.dao.CrisisResourceDao
 import com.charles.warmwords.app.data.local.dao.JournalDao
 import com.charles.warmwords.app.data.local.dao.MoodDao
+import com.charles.warmwords.app.data.local.dao.SessionNoteDao
 import com.charles.warmwords.app.data.local.dao.SessionReminderDao
 import com.charles.warmwords.app.data.local.dao.UserProfileDao
 import com.charles.warmwords.app.util.ModelConfig
@@ -43,6 +44,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindSessionReminderRepository(impl: com.charles.warmwords.app.data.repository.SessionReminderRepositoryImpl): com.charles.warmwords.app.domain.repository.SessionReminderRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSessionNoteRepository(impl: com.charles.warmwords.app.data.repository.SessionNoteRepositoryImpl): com.charles.warmwords.app.domain.repository.SessionNoteRepository
 }
 
 @Module
@@ -78,6 +83,9 @@ object DatabaseModule {
 
     @Provides
     fun provideSessionReminderDao(db: WarmWordDatabase): SessionReminderDao = db.sessionReminderDao()
+
+    @Provides
+    fun provideSessionNoteDao(db: WarmWordDatabase): SessionNoteDao = db.sessionNoteDao()
 
     @Provides
     @Singleton

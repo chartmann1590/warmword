@@ -6,7 +6,9 @@ data class ChatSessionSummary(
     val startTimestamp: Long,
     val endTimestamp: Long,
     val messageCount: Int,
-    val preview: String
+    val preview: String,
+    val transcript: String,
+    val isLikelyOngoing: Boolean
 )
 
 private const val SESSION_GAP_MS = 30 * 60 * 1000L // messages more than 30 min apart start a new session
@@ -38,14 +40,28 @@ fun buildChatSessions(messages: List<ChatMessageModel>): List<ChatSessionSummary
         }
     }
 
+    val now = System.currentTimeMillis()
+
     return sessions.map { group ->
         val firstUserMessage = group.filterIsInstance<ChatMessageModel.User>().firstOrNull()
         val preview = firstUserMessage?.content?.take(80)?.trim().orEmpty()
+        val transcript = group.joinToString("\n") { message ->
+            when (message) {
+                is ChatMessageModel.User -> "User: ${message.content}"
+                is ChatMessageModel.Model -> "WarmWord: ${message.content}"
+            }
+        }
+        val endTimestamp = group.last().timestamp
         ChatSessionSummary(
             startTimestamp = group.first().timestamp,
-            endTimestamp = group.last().timestamp,
+            endTimestamp = endTimestamp,
             messageCount = group.size,
-            preview = preview.ifBlank { "Session with no messages saved" }
+            preview = preview.ifBlank { "Session with no messages saved" },
+            transcript = transcript,
+            // A session within the gap window of "now" might still get more messages appended
+            // to it, so its note (and its DB rows) aren't final yet - don't summarize it until
+            // it's had a chance to actually end.
+            isLikelyOngoing = now - endTimestamp <= SESSION_GAP_MS
         )
     }.sortedByDescending { it.startTimestamp }
 }
