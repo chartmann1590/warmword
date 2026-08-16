@@ -10,6 +10,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -28,6 +31,11 @@ class LiteRtLmManager @Inject constructor() {
 
     private var modelPath: String? = null
 
+    private val _isReady = MutableStateFlow(false)
+    /** Emits true once the engine + conversation are usable, so observers (e.g. Insights) can
+     *  kick off work that needs the model without polling [isInitialized]. */
+    val isReady: StateFlow<Boolean> = _isReady.asStateFlow()
+
     @Volatile
     var systemPrompt: String = SystemPrompt.DEFAULT_PERSONA.systemPrompt
         private set
@@ -43,6 +51,7 @@ class LiteRtLmManager @Inject constructor() {
 
         this.modelPath = modelPath
         this.systemPrompt = systemPrompt
+        _isReady.value = false
 
         return try {
             release()
@@ -75,9 +84,10 @@ class LiteRtLmManager @Inject constructor() {
                 Log.w(TAG, "Speculative decoding not available", e)
             }
 
-            Log.d(TAG, "Engine initialized successfully with GPU backend")
-            true
-        } catch (e: Exception) {
+                Log.d(TAG, "Engine initialized successfully with GPU backend")
+                _isReady.value = true
+                true
+            } catch (e: Exception) {
             Log.w(TAG, "GPU backend failed, falling back to CPU", e)
             try {
                 release()
@@ -101,9 +111,11 @@ class LiteRtLmManager @Inject constructor() {
                     )
                 )
                 Log.d(TAG, "Engine initialized with CPU fallback")
+                _isReady.value = true
                 true
             } catch (e2: Exception) {
                 Log.e(TAG, "Failed to initialize engine with any backend", e2)
+                _isReady.value = false
                 false
             }
         }
@@ -144,11 +156,22 @@ class LiteRtLmManager @Inject constructor() {
                 )
             )
 
-            conversation = engine?.createConversation(conversationConfig)
+            conversation = engine?.createConversation(
+                com.google.ai.edge.litertlm.ConversationConfig(
+                    systemInstruction = com.google.ai.edge.litertlm.Contents.of(systemPrompt),
+                    samplerConfig = com.google.ai.edge.litertlm.SamplerConfig(
+                        topK = 40,
+                        topP = 0.95,
+                        temperature = 0.8
+                    )
+                )
+            )
             Log.d(TAG, "Engine reinitialized with CPU backend")
+            _isReady.value = true
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize with CPU backend", e)
+            _isReady.value = false
             false
         }
     }
@@ -299,6 +322,7 @@ class LiteRtLmManager @Inject constructor() {
         }
         conversation = null
         engine = null
+        _isReady.value = false
     }
 
     companion object {

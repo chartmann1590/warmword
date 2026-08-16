@@ -2,7 +2,23 @@
 // console project (Project Settings > Your apps > google-services.json) dropped in app/.
 // The plugins that process it are applied conditionally so the build keeps working before
 // that file exists; once it's present, Firebase wiring turns on automatically.
+import java.util.Properties
+import java.io.FileInputStream
+
 val hasFirebaseConfig = file("google-services.json").exists()
+
+// AdMob: real IDs come from local.properties (ADMOB_APP_ID / ADMOB_BANNER_AD_UNIT_ID /
+// ADMOB_INTERSTITIAL_AD_UNIT_ID). If they're missing we fall back to Google's well-known
+// test IDs so the app still builds and serves test ads during development.
+val localProps = Properties().apply {
+    val propsFile = rootProject.file("local.properties")
+    if (propsFile.exists()) load(FileInputStream(propsFile))
+}
+fun admobProp(name: String, default: String): String = localProps.getProperty(name) ?: default
+
+val admobAppId = admobProp("ADMOB_APP_ID", "ca-app-pub-3940256099942544~3347511713")
+val admobBannerId = admobProp("ADMOB_BANNER_AD_UNIT_ID", "ca-app-pub-3940256099942544/6300978111")
+val admobInterstitialId = admobProp("ADMOB_INTERSTITIAL_AD_UNIT_ID", "ca-app-pub-3940256099942544/1033173712")
 
 plugins {
     alias(libs.plugins.android.application)
@@ -69,6 +85,11 @@ android {
 
     defaultConfig {
         buildConfigField("boolean", "FIREBASE_ENABLED", hasFirebaseConfig.toString())
+
+        manifestPlaceholders["admobAppId"] = admobAppId
+        buildConfigField("String", "ADMOB_APP_ID", "\"$admobAppId\"")
+        buildConfigField("String", "ADMOB_BANNER_ID", "\"$admobBannerId\"")
+        buildConfigField("String", "ADMOB_INTERSTITIAL_ID", "\"$admobInterstitialId\"")
     }
 
     packaging {
@@ -108,6 +129,9 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.analytics)
+
+    // AdMob (banner + interstitial advertising)
+    implementation(libs.play.services.ads)
 
     // Hilt DI
     implementation(libs.hilt.android)

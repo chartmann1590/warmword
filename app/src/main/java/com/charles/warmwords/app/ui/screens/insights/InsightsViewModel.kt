@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import java.util.Locale
 import javax.inject.Inject
 
 data class MoodPoint(val day: String, val score: Float)
@@ -30,7 +31,11 @@ data class InsightsUiState(
     val commonTags: List<Pair<String, Int>> = emptyList(),
     val totalChatSessions: Int = 0,
     val totalMessages: Int = 0,
-    val recentSessions: List<ChatSessionSummary> = emptyList(),
+    val allSessions: List<ChatSessionSummary> = emptyList(),
+    val pagedSessions: List<ChatSessionSummary> = emptyList(),
+    val searchQuery: String = "",
+    val currentPage: Int = 1,
+    val totalPages: Int = 1,
     val sessionNotes: Map<Long, String> = emptyMap(),
     val notesBeingGenerated: Set<Long> = emptySet(),
     val upcomingReminders: List<SessionReminderModel> = emptyList(),
@@ -64,6 +69,15 @@ class InsightsViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     sessionNotes = notes.associate { it.sessionStartTimestamp to it.note }
                 )
+                recomputePage()
+            }
+        }
+        // Sessions whose AI note failed (or hadn't been generated yet because the model wasn't
+        // loaded) get another chance the moment the on-device engine becomes usable. Notes that
+        // were already saved are skipped by generateMissingNotes, so nothing regenerates.
+        viewModelScope.launch {
+            liteRtLmManager.isReady.collect { ready ->
+                if (ready) generateMissingNotes(_uiState.value.allSessions)
             }
         }
     }
@@ -122,22 +136,102 @@ class InsightsViewModel @Inject constructor(
                 commonTags = commonTags,
                 totalChatSessions = sessions.size,
                 totalMessages = allMessages.size,
-                recentSessions = sessions.take(10),
+                allSessions = sessions,
+                currentPage = 1,
                 isLoading = false
             )
+            recomputePage()
 
-            generateMissingNotes(sessions.take(10))
+            generateMissingNotes(sessions)
+        }
+    }
+
+    /**
+     * Re-runs the search filter and slices the current page out of [InsightsUiState.allSessions],
+     * keeping the shared session list coherent with whichever state last changed (sessions, notes,
+     * query or page).
+     */
+    private fun recomputePage() {
+        val state = _uiState.value
+        val query = state.searchQuery.trim().lowercase(Locale.getDefault())
+
+        val filtered = if (query.isEmpty()) {
+            state.allSessions
+        } else {
+            state.allSessions.filter { session ->
+                val note = state.sessionNotes[session.startTimestamp].orEmpty()
+                session.preview.lowercase(Locale.getDefault()).contains(query) ||
+                    note.lowercase(Locale.getDefault()).contains(query) ||
+                    session.transcript.lowercase(Locale.getDefault()).contains(query)
+            }
+        }
+
+        val totalPages = maxOf(1, (filtered.size + PAGE_SIZE - 1) / PAGE_SIZE)
+        val safePage = state.currentPage.coerceIn(1, totalPages)
+        val fromIndex = (safePage - 1) * PAGE_SIZE
+        val paged = if (filtered.isEmpty()) {
+            emptyList()
+        } else {
+            filtered.subList(fromIndex, minOf(fromIndex + PAGE_SIZE, filtered.size))
+        }
+
+        _uiState.value = state.copy(
+            pagedSessions = paged,
+            currentPage = safePage,
+            totalPages = totalPages
+        )
+    }
+
+    fun onSearchQueryChange(query: String) {
+        _uiState.value = _uiState.value.copy(searchQuery = query, currentPage = 1)
+        recomputePage()
+    }
+
+    fun nextPage() {
+        val state = _uiState.value
+        if (state.currentPage < state.totalPages) {
+            _uiState.value = state.copy(currentPage = state.currentPage + 1)
+            recomputePage()
+        }
+    }
+
+    fun previousPage() {
+        val state = _uiState.value
+        if (state.currentPage > 1) {
+            _uiState.value = state.copy(currentPage = state.currentPage - 1)
+            recomputePage()
+        }
+    }
+
+    fun goToPage(page: Int) {
+        _uiState.value = _uiState.value.copy(currentPage = page)
+        recomputePage()
+    }
+
+    /** Persists a manually written (full) insight for a session, replacing any AI note. */
+    fun saveInsight(sessionStartTimestamp: Long, note: String) {
+        val trimmed = note.trim()
+        if (trimmed.isBlank()) return
+        viewModelScope.launch {
+            sessionNoteUseCases.saveNote(
+                SessionNoteModel(sessionStartTimestamp = sessionStartTimestamp, note = trimmed)
+            )
         }
     }
 
     /** Asks the on-device model for a short note on any finished session that doesn't have one yet. */
     private fun generateMissingNotes(sessions: List<ChatSessionSummary>) {
         if (!liteRtLmManager.isInitialized()) return
-        val existingNotes = _uiState.value.sessionNotes
-        val toGenerate = sessions.filter { !it.isLikelyOngoing && existingNotes[it.startTimestamp] == null }
 
-        toGenerate.forEach { session ->
-            viewModelScope.launch {
+        val toGenerate = sessions.filter {
+            !it.isLikelyOngoing && !_uiState.value.sessionNotes.containsKey(it.startTimestamp)
+        }
+        if (toGenerate.isEmpty()) return
+
+        viewModelScope.launch {
+            // Run sequentially: each call spins up a throwaway LiteRT-LM conversation, so doing
+            // them one at a time keeps the on-device engine from choking on parallel inference.
+            toGenerate.forEach { session ->
                 _uiState.value = _uiState.value.copy(
                     notesBeingGenerated = _uiState.value.notesBeingGenerated + session.startTimestamp
                 )
@@ -202,5 +296,9 @@ class InsightsViewModel @Inject constructor(
     fun refresh() {
         _uiState.value = _uiState.value.copy(isLoading = true)
         loadInsights()
+    }
+
+    companion object {
+        private const val PAGE_SIZE = 5
     }
 }

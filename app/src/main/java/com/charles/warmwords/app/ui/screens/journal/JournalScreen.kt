@@ -88,6 +88,10 @@ fun JournalScreen(
             }
         )
 
+        com.charles.warmwords.app.ui.components.AdBanner(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+        )
+
         if (uiState.entries.isEmpty()) {
             Box(
                 modifier = Modifier

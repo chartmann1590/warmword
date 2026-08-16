@@ -27,11 +27,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.ChevronLeft
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Forum
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -81,6 +84,8 @@ fun InsightsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
     var showScheduleDialog by rememberSaveable { mutableStateOf(false) }
+    var editingSessionTimestamp by rememberSaveable { mutableStateOf<Long?>(null) }
+    val editingSession = uiState.allSessions.firstOrNull { it.startTimestamp == editingSessionTimestamp }
     val context = LocalContext.current
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -263,23 +268,109 @@ fun InsightsScreen(
             )
             Spacer(Modifier.height(8.dp))
 
-            if (uiState.recentSessions.isEmpty()) {
+            OutlinedTextField(
+                value = uiState.searchQuery,
+                onValueChange = viewModel::onSearchQueryChange,
+                placeholder = { Text("Search sessions & insights") },
+                leadingIcon = { Icon(imageVector = Icons.Rounded.Search, contentDescription = null) },
+                trailingIcon = if (uiState.searchQuery.isNotEmpty()) {
+                    {
+                        IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                            Icon(
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = "Clear search",
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                } else {
+                    null
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            if (uiState.pagedSessions.isEmpty()) {
                 Text(
-                    text = "No chat sessions yet. Start a conversation to see it noted here.",
+                    text = if (uiState.searchQuery.isNotBlank()) {
+                        "No sessions match \"${uiState.searchQuery.trim()}\"."
+                    } else {
+                        "No chat sessions yet. Start a conversation to see it noted here."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
-                uiState.recentSessions.forEach { session ->
+                uiState.pagedSessions.forEach { session ->
                     SessionItem(
                         session = session,
                         note = uiState.sessionNotes[session.startTimestamp],
-                        isGeneratingNote = session.startTimestamp in uiState.notesBeingGenerated
+                        isGeneratingNote = session.startTimestamp in uiState.notesBeingGenerated,
+                        onEditInsight = { editingSessionTimestamp = session.startTimestamp }
                     )
                     Spacer(Modifier.height(8.dp))
                 }
+
+                if (uiState.totalPages > 1) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                    ) {
+                        TextButton(
+                            onClick = viewModel::previousPage,
+                            enabled = uiState.currentPage > 1
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.ChevronLeft,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text("Prev")
+                        }
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            text = "Page ${uiState.currentPage} of ${uiState.totalPages}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.weight(1f))
+                        TextButton(
+                            onClick = viewModel::nextPage,
+                            enabled = uiState.currentPage < uiState.totalPages
+                        ) {
+                            Text("Next")
+                            Icon(
+                                imageVector = Icons.Rounded.ChevronRight,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
+
+        com.charles.warmwords.app.ui.components.AdBanner(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        )
+    }
+
+    if (editingSession != null) {
+        InsightEditorDialog(
+            session = editingSession,
+            initialNote = uiState.sessionNotes[editingSession.startTimestamp].orEmpty(),
+            onDismiss = { editingSessionTimestamp = null },
+            onSave = { note ->
+                viewModel.saveInsight(editingSession.startTimestamp, note)
+            }
+        )
     }
 
     if (showScheduleDialog) {
@@ -411,6 +502,7 @@ fun SessionItem(
     session: ChatSessionSummary,
     note: String?,
     isGeneratingNote: Boolean,
+    onEditInsight: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val formatter = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
@@ -451,6 +543,18 @@ fun SessionItem(
                         text = "${formatter.format(Date(session.startTimestamp))} · ${session.messageCount} messages",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                TextButton(onClick = onEditInsight) {
+                    Icon(
+                        imageVector = Icons.Rounded.EditNote,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = if (note == null) "Add" else "Edit",
+                        style = MaterialTheme.typography.labelMedium
                     )
                 }
                 if (note != null) {
@@ -511,6 +615,65 @@ fun SessionItem(
             }
         }
     }
+}
+
+@Composable
+fun InsightEditorDialog(
+    session: ChatSessionSummary,
+    initialNote: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    val formatter = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
+    var text by rememberSaveable(session.startTimestamp) { mutableStateOf(initialNote) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        title = { Text(if (initialNote.isBlank()) "Add Full Insight" else "Edit Full Insight") },
+        text = {
+            Column {
+                Text(
+                    text = session.preview,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = formatter.format(Date(session.startTimestamp)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("Full insight") },
+                    placeholder = { Text("Write a fuller note about this session…") },
+                    minLines = 5,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onSave(text)
+                    onDismiss()
+                },
+                enabled = text.isNotBlank()
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable

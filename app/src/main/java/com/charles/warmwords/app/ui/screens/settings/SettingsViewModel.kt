@@ -12,6 +12,7 @@ import com.charles.warmwords.app.ai.SystemPrompt
 import com.charles.warmwords.app.ai.TextToSpeechManager
 import com.charles.warmwords.app.ai.WarmVoice
 import com.charles.warmwords.app.analytics.AnalyticsManager
+import com.charles.warmwords.app.ads.AdsPreferences
 import com.charles.warmwords.app.data.local.entity.UserProfile
 import com.charles.warmwords.app.domain.usecase.ChatUseCases
 import com.charles.warmwords.app.domain.usecase.JournalUseCases
@@ -47,8 +48,16 @@ class SettingsViewModel @Inject constructor(
     private val journalUseCases: JournalUseCases,
     private val textToSpeechManager: TextToSpeechManager,
     private val analyticsManager: AnalyticsManager,
+    private val adsPreferences: AdsPreferences,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    val personalizedAdsEnabled: Boolean
+        get() = adsPreferences.personalizedAdsEnabled
+
+    fun setPersonalizedAdsEnabled(enabled: Boolean) {
+        adsPreferences.setPersonalizedAdsEnabled(enabled)
+    }
 
     val personas: List<Persona> = SystemPrompt.PERSONAS
 

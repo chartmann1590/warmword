@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileDownload
@@ -191,7 +192,7 @@ fun SettingsScreen(
         CardSection(title = "About") {
             SettingItem(
                 title = "Privacy Policy",
-                value = "Your data stays on this device",
+                value = "Ads, analytics & your data explained",
                 icon = Icons.Rounded.Lock,
                 onClick = { showPrivacyPolicy = true }
             )
@@ -200,6 +201,30 @@ fun SettingsScreen(
                 value = "1.0.0"
             )
         }
+
+        Spacer(Modifier.height(16.dp))
+
+        CardSection(title = "Ads") {
+            var personalizedAds by rememberSaveable { mutableStateOf(viewModel.personalizedAdsEnabled) }
+            SettingSwitchItem(
+                title = "Personalized ads",
+                subtitle = "Off (recommended): ads aren't based on your activity",
+                icon = Icons.Rounded.Campaign,
+                checked = personalizedAds,
+                onCheckedChange = {
+                    personalizedAds = it
+                    viewModel.setPersonalizedAdsEnabled(it)
+                }
+            )
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        com.charles.warmwords.app.ui.components.AdBanner(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        )
 
         Spacer(Modifier.height(24.dp))
 
@@ -454,8 +479,19 @@ private fun PrivacyPolicyDialog(onDismiss: () -> Unit) {
                 Text(
                     text = "WarmWord runs its AI companion entirely on your device. All conversations, " +
                         "journal entries, and mood logs are processed by an on-device AI model and stored " +
-                        "locally in an encrypted local database. Nothing you write in chat or journal " +
-                        "entries is ever uploaded to any server or shared with third parties.\n\n" +
+                        "locally in an encrypted local database. Your private conversations and journal " +
+                        "entries are never uploaded to WarmWord's own servers and are never used to " +
+                        "personalize advertising.\n\n" +
+
+                        "Advertising: WarmWord is supported by Google AdMob, a third-party ad network. To " +
+                        "show ads, AdMob and its partners may collect and process information such as your " +
+                        "advertising ID, IP address, device type, coarse (city-level) location, and general " +
+                        "in-app activity (which screens you open). AdMob uses this to serve ads. By default " +
+                        "WarmWord requests NON-personalized ads, so ad targeting is not based on your " +
+                        "personal information or anything you've written. You can allow personalized ads in " +
+                        "Settings > Ads, and you can reset or opt out of ad personalization at any time in " +
+                        "your device's Android settings (Ads > Reset advertising ID / Opt out of ads " +
+                        "personalization). For details, see Google's advertising privacy policy.\n\n" +
 
                         "Voice features: if you enable Voice Replies, spoken responses are synthesized " +
                         "on-device or by your phone's text-to-speech engine and are never recorded or sent " +
@@ -473,10 +509,11 @@ private fun PrivacyPolicyDialog(onDismiss: () -> Unit) {
                         "what's collected in Google's Firebase privacy documentation.\n\n" +
 
                         "Network access: besides the above, the only network access WarmWord uses is the " +
-                        "one-time download of the AI model file and opening links/dialer for the resources " +
-                        "listed in Find Help. If a future update adds live nearby-provider search, that " +
-                        "request is routed through a Cloudflare Worker proxy that WarmWord's developer " +
-                        "controls, so no API key for that service is ever stored in the app itself.\n\n" +
+                        "one-time download of the AI model file, loading advertisements, and opening " +
+                        "links/dialer for the resources listed in Find Help. If a future update adds live " +
+                        "nearby-provider search, that request is routed through a Cloudflare Worker proxy " +
+                        "that WarmWord's developer controls, so no API key for that service is ever stored " +
+                        "in the app itself.\n\n" +
 
                         "You can export or permanently delete all of your data at any time from Settings.",
                     style = MaterialTheme.typography.bodyMedium

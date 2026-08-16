@@ -23,6 +23,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.charles.warmwords.app.data.local.entity.UserProfile
+import com.charles.warmwords.app.ads.AdsManager
 import com.charles.warmwords.app.domain.usecase.UserProfileUseCases
 import com.charles.warmwords.app.ui.navigation.WarmWordBottomBar
 import com.charles.warmwords.app.ui.navigation.WarmWordNavGraph
@@ -39,6 +40,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var userProfileUseCases: UserProfileUseCases
 
+    @Inject
+    lateinit var adsManager: AdsManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         enableEdgeToEdge()
@@ -46,14 +50,22 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             WarmWordTheme {
-                WarmWordApp(userProfileUseCases = userProfileUseCases)
+                WarmWordApp(
+                    userProfileUseCases = userProfileUseCases,
+                    onBeforeNavigate = { target, current ->
+                        adsManager.maybeShowInterstitial(this, target.route, current)
+                    }
+                )
             }
         }
     }
 }
 
 @Composable
-fun WarmWordApp(userProfileUseCases: UserProfileUseCases) {
+fun WarmWordApp(
+    userProfileUseCases: UserProfileUseCases,
+    onBeforeNavigate: (Screen, String) -> Unit = { _, _ -> }
+) {
     val snackbarHostState = remember { SnackbarHostState() }
     val navController = rememberNavController()
     var startDestination by rememberSaveable { mutableStateOf(Screen.Onboarding.route) }
@@ -68,7 +80,7 @@ fun WarmWordApp(userProfileUseCases: UserProfileUseCases) {
     }
 
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = backStackEntry?.destination?.route
+    val currentRoute = backStackEntry?.destination?.route ?: Screen.Onboarding.route
 
     val navItems = bottomNavItems.filter { !it.screen.route.startsWith("onboarding") }
 
@@ -80,6 +92,7 @@ fun WarmWordApp(userProfileUseCases: UserProfileUseCases) {
                         items = navItems,
                         currentRoute = currentRoute,
                         onNavigate = { screen ->
+                            onBeforeNavigate(screen, currentRoute)
                             navController.navigate(screen.route) {
                                 popUpTo(navController.graph.startDestinationId) {
                                     saveState = true

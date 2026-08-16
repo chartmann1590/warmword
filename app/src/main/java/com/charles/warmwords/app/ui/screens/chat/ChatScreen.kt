@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.charles.warmwords.app.R
 import com.charles.warmwords.app.data.model.ChatMessageModel
+import com.charles.warmwords.app.ui.components.AdBanner
 import com.charles.warmwords.app.ui.components.Avatar
 import com.charles.warmwords.app.ui.components.AvatarState
 import com.charles.warmwords.app.ui.components.ChatFooterDisclaimer
@@ -96,6 +97,12 @@ fun ChatScreen(
         )
 
         ChatFooterDisclaimer()
+
+        AdBanner(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+        )
     }
 }
 
