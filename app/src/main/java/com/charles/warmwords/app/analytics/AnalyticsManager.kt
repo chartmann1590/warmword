@@ -77,7 +77,13 @@ class AnalyticsManager @Inject constructor(
         const val EVENT_DATA_EXPORTED = "data_exported"
         const val EVENT_DATA_DELETED = "data_deleted"
 
+        // Subscription / monetization events
+        const val EVENT_SUBSCRIPTION_PURCHASED = "subscription_purchased"
+        const val EVENT_PAYWALL_SHOWN = "paywall_shown"
+        const val EVENT_PREMIUM_FEATURE_ATTEMPTED = "premium_feature_attempted"
+
         const val PARAM_PERSONA_ID = "persona_id"
         const val PARAM_SCREEN = "screen"
+        const val PARAM_PRODUCT_ID = "product_id"
     }
 }

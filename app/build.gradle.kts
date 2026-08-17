@@ -15,6 +15,7 @@ val localProps = Properties().apply {
     if (propsFile.exists()) load(FileInputStream(propsFile))
 }
 fun admobProp(name: String, default: String): String = localProps.getProperty(name) ?: default
+fun billingProp(name: String, default: String): String = localProps.getProperty(name) ?: default
 
 val admobAppId = admobProp("ADMOB_APP_ID", "ca-app-pub-3940256099942544~3347511713")
 val admobBannerId = admobProp("ADMOB_BANNER_AD_UNIT_ID", "ca-app-pub-3940256099942544/6300978111")
@@ -42,7 +43,7 @@ android {
     defaultConfig {
         applicationId = "com.charles.warmwords.app"
         minSdk = 31
-        targetSdk = 37
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
 
@@ -90,6 +91,13 @@ android {
         buildConfigField("String", "ADMOB_APP_ID", "\"$admobAppId\"")
         buildConfigField("String", "ADMOB_BANNER_ID", "\"$admobBannerId\"")
         buildConfigField("String", "ADMOB_INTERSTITIAL_ID", "\"$admobInterstitialId\"")
+
+        // Cloudflare Worker endpoint that verifies Play purchase tokens (see cloudflare-worker/).
+        val billingVerifyUrl = billingProp(
+            "BILLING_VERIFY_URL",
+            "https://warmword-worker.YOUR_SUBDOMAIN.workers.dev/billing/verify"
+        )
+        buildConfigField("String", "BILLING_VERIFY_URL", "\"$billingVerifyUrl\"")
     }
 
     packaging {
@@ -132,6 +140,9 @@ dependencies {
 
     // AdMob (banner + interstitial advertising)
     implementation(libs.play.services.ads)
+
+    // Google Play Billing (WarmWord Premium subscription)
+    implementation(libs.billing)
 
     // Hilt DI
     implementation(libs.hilt.android)

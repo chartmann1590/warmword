@@ -68,11 +68,13 @@ import java.io.File
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onPrivacyPolicyClick: () -> Unit,
+    onNavigateToPaywall: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    val isPremium = uiState.subscription.isPremium
 
     var showEditProfile by rememberSaveable { mutableStateOf(false) }
     var showPrivacyPolicy by rememberSaveable { mutableStateOf(false) }
@@ -93,6 +95,49 @@ fun SettingsScreen(
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
+        if (isPremium) {
+            CardSection(title = "Membership") {
+                SettingItem(
+                    title = "WarmWord Premium",
+                    value = "Ad-free · all personalities unlocked",
+                    icon = Icons.Rounded.Lock
+                )
+            }
+        } else {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onNavigateToPaywall() },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = "Upgrade to Premium",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = "Go ad-free & unlock all personalities",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(Icons.Rounded.ChevronRight, contentDescription = null)
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
         uiState.profile?.let { profile ->
             CardSection(title = "Profile") {
                 SettingItem(
@@ -112,11 +157,12 @@ fun SettingsScreen(
         val currentPersona = viewModel.personas.firstOrNull { it.id == uiState.profile?.selectedPersonaId }
             ?: viewModel.personas.first()
         CardSection(title = "AI Personality") {
+            val locked = currentPersona.isPremium && !isPremium
             SettingItem(
-                title = currentPersona.displayName,
-                value = currentPersona.tagline,
-                icon = Icons.Rounded.Psychology,
-                onClick = { showPersonaPicker = true }
+                title = if (currentPersona.isPremium) "${currentPersona.displayName}  • Premium" else currentPersona.displayName,
+                value = if (locked) "Unlock with WarmWord Premium" else currentPersona.tagline,
+                icon = if (locked) Icons.Rounded.Lock else Icons.Rounded.Psychology,
+                onClick = { if (locked) onNavigateToPaywall() else showPersonaPicker = true }
             )
         }
 
@@ -205,17 +251,25 @@ fun SettingsScreen(
         Spacer(Modifier.height(16.dp))
 
         CardSection(title = "Ads") {
-            var personalizedAds by rememberSaveable { mutableStateOf(viewModel.personalizedAdsEnabled) }
-            SettingSwitchItem(
-                title = "Personalized ads",
-                subtitle = "Off (recommended): ads aren't based on your activity",
-                icon = Icons.Rounded.Campaign,
-                checked = personalizedAds,
-                onCheckedChange = {
-                    personalizedAds = it
-                    viewModel.setPersonalizedAdsEnabled(it)
-                }
-            )
+            if (isPremium) {
+                SettingItem(
+                    title = "Ad-free",
+                    value = "Thanks for being a Premium member",
+                    icon = Icons.Rounded.Campaign
+                )
+            } else {
+                var personalizedAds by rememberSaveable { mutableStateOf(viewModel.personalizedAdsEnabled) }
+                SettingSwitchItem(
+                    title = "Personalized ads",
+                    subtitle = "Off (recommended): ads aren't based on your activity",
+                    icon = Icons.Rounded.Campaign,
+                    checked = personalizedAds,
+                    onCheckedChange = {
+                        personalizedAds = it
+                        viewModel.setPersonalizedAdsEnabled(it)
+                    }
+                )
+            }
         }
 
         Spacer(Modifier.height(24.dp))
@@ -279,7 +333,9 @@ fun SettingsScreen(
         PersonaPickerDialog(
             personas = viewModel.personas,
             selectedId = uiState.profile?.selectedPersonaId ?: viewModel.personas.first().id,
+            isPremium = isPremium,
             onSelect = { viewModel.setPersona(it) },
+            onNavigateToPaywall = onNavigateToPaywall,
             onDismiss = { showPersonaPicker = false }
         )
     }
@@ -299,7 +355,9 @@ fun SettingsScreen(
 private fun PersonaPickerDialog(
     personas: List<Persona>,
     selectedId: String,
+    isPremium: Boolean,
     onSelect: (String) -> Unit,
+    onNavigateToPaywall: () -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -311,28 +369,37 @@ private fun PersonaPickerDialog(
         text = {
             Column {
                 personas.forEach { persona ->
+                    val locked = persona.isPremium && !isPremium
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onSelect(persona.id) }
+                            .clickable { if (locked) onNavigateToPaywall() else onSelect(persona.id) }
                             .padding(vertical = 10.dp)
                     ) {
                         RadioButton(
-                            selected = persona.id == selectedId,
-                            onClick = { onSelect(persona.id) }
+                            selected = persona.id == selectedId && !locked,
+                            onClick = { if (locked) onNavigateToPaywall() else onSelect(persona.id) }
                         )
                         Spacer(Modifier.width(4.dp))
-                        Column {
+                        Column(Modifier.weight(1f)) {
                             Text(
-                                text = persona.displayName,
+                                text = if (persona.isPremium) "${persona.displayName}  • Premium" else persona.displayName,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = persona.tagline,
+                                text = if (locked) "WarmWord Premium" else persona.tagline,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (locked) {
+                            Icon(
+                                imageVector = Icons.Rounded.Lock,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
@@ -507,6 +574,14 @@ private fun PrivacyPolicyDialog(onDismiss: () -> Unit) {
                         "event names (like \"message sent\" or \"persona changed\") and crash stack traces - " +
                         "never your chat content, journal text, or anything you've typed. You can see exactly " +
                         "what's collected in Google's Firebase privacy documentation.\n\n" +
+
+                        "Subscriptions: if you upgrade to WarmWord Premium, the purchase is handled entirely " +
+                        "by Google Play and billed to your Google Play account. Google Play is the merchant of " +
+                        "record and processes your payment information; WarmWord does not receive or store your " +
+                        "card details. Your subscription status is verified through a Cloudflare Worker that " +
+                        "WarmWord's developer controls, which checks the purchase with Google's servers using " +
+                        "the Google Play Developer API. You can manage or cancel your subscription anytime in " +
+                        "Google Play.\n\n" +
 
                         "Network access: besides the above, the only network access WarmWord uses is the " +
                         "one-time download of the AI model file, loading advertisements, and opening " +

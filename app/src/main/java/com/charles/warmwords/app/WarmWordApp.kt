@@ -2,6 +2,7 @@ package com.charles.warmwords.app
 
 import android.app.Application
 import com.charles.warmwords.app.ads.AdsManager
+import com.charles.warmwords.app.billing.BillingManager
 import com.charles.warmwords.app.data.local.dao.CrisisResourceDao
 import com.charles.warmwords.app.data.repository.CrisisRepositoryImpl
 import dagger.hilt.android.HiltAndroidApp
@@ -19,10 +20,14 @@ class WarmWordApp : Application() {
     @Inject
     lateinit var adsManager: AdsManager
 
+    @Inject
+    lateinit var billingManager: BillingManager
+
     override fun onCreate() {
         super.onCreate()
 
         adsManager.initialize()
+        billingManager.connect()
 
         CoroutineScope(Dispatchers.IO).launch {
             if (crisisResourceDao.getCount() == 0) {

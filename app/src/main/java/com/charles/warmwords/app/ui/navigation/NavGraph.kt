@@ -12,6 +12,7 @@ import com.charles.warmwords.app.ui.screens.insights.InsightsScreen
 import com.charles.warmwords.app.ui.screens.journal.JournalScreen
 import com.charles.warmwords.app.ui.screens.onboarding.OnboardingScreen
 import com.charles.warmwords.app.ui.screens.onboarding.OnboardingViewModel
+import com.charles.warmwords.app.ui.screens.paywall.PaywallScreen
 import com.charles.warmwords.app.ui.screens.settings.SettingsScreen
 
 sealed class Screen(val route: String) {
@@ -21,6 +22,7 @@ sealed class Screen(val route: String) {
     object Insights : Screen("insights")
     object FindHelp : Screen("findhelp")
     object Settings : Screen("settings")
+    object Paywall : Screen("paywall")
 }
 
 @Composable
@@ -77,7 +79,20 @@ fun WarmWordNavGraph(
             val settingsViewModel: com.charles.warmwords.app.ui.screens.settings.SettingsViewModel = hiltViewModel()
             SettingsScreen(
                 viewModel = settingsViewModel,
-                onPrivacyPolicyClick = { }
+                onPrivacyPolicyClick = { },
+                onNavigateToPaywall = {
+                    navController.navigate(Screen.Paywall.route)
+                }
+            )
+        }
+
+        composable(Screen.Paywall.route) {
+            val paywallViewModel: com.charles.warmwords.app.ui.screens.paywall.PaywallViewModel = hiltViewModel()
+            PaywallScreen(
+                viewModel = paywallViewModel,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
             )
         }
     }

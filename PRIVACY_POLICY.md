@@ -59,24 +59,37 @@ and understand which features are used. These only ever receive anonymous event
 names (such as "message sent" or "persona changed") and crash stack traces —
 never your chat content, journal text, or anything you have typed.
 
-## 5. Network access
+## 5. Subscriptions
+
+If you upgrade to **WarmWord Premium**, the purchase is handled entirely by
+**Google Play** and billed to your Google Play account. Google Play is the
+merchant of record and processes your payment information; WarmWord does **not**
+receive or store your card details.
+
+Your subscription status is verified through a **Cloudflare Worker** controlled
+by WarmWord's developer, which checks the purchase with Google's servers using
+the Google Play Developer API. You can manage or cancel your subscription at any
+time in Google Play.
+
+## 6. Network access
 
 Besides the items above, the only network access WarmWord uses is:
 
 - the one-time download of the AI model file,
 - loading advertisements,
+- verifying WarmWord Premium subscription purchases with Google Play,
 - opening links or the dialer for the resources listed in **Find Help**.
 
 If a future update adds live nearby-provider search, that request is routed
 through a Cloudflare Worker proxy controlled by WarmWord's developer, so no API
 key for that service is ever stored inside the app.
 
-## 6. Your rights & controls
+## 7. Your rights & controls
 
 You can **export** or **permanently delete** all of your data at any time from
 **Settings**.
 
-## 7. Contact
+## 8. Contact
 
 For privacy questions, contact the WarmWord developer via the app's support
 channel.

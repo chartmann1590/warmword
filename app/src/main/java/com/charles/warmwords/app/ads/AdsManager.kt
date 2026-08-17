@@ -3,6 +3,7 @@ package com.charles.warmwords.app.ads
 import android.app.Activity
 import android.os.Bundle
 import com.charles.warmwords.app.BuildConfig
+import com.charles.warmwords.app.billing.EntitlementStore
 import com.charles.warmwords.app.ui.navigation.Screen
 import com.google.ads.mediation.admob.AdMobAdapter
 import com.google.android.gms.ads.AdRequest
@@ -29,7 +30,8 @@ import android.content.Context
 @Singleton
 class AdsManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val adsPreferences: AdsPreferences
+    private val adsPreferences: AdsPreferences,
+    private val entitlementStore: EntitlementStore
 ) {
     private var interstitial: InterstitialAd? = null
     private var lastInterstitialShownMs = 0L
@@ -97,6 +99,7 @@ class AdsManager @Inject constructor(
         targetRoute: String,
         currentRoute: String
     ): Boolean {
+        if (entitlementStore.getState().isPremium) return false
         if (targetRoute in protectedRoutes || currentRoute in protectedRoutes) return false
         if (System.currentTimeMillis() - lastInterstitialShownMs < interstitialCooldownMs) return false
 

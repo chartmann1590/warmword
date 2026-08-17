@@ -7,9 +7,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import com.charles.warmwords.app.BuildConfig
 import com.charles.warmwords.app.ads.AdsEntryPoint
 import com.charles.warmwords.app.ads.AdsManager
+import com.charles.warmwords.app.domain.repository.SubscriptionRepository
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
@@ -34,6 +37,15 @@ fun AdBanner(
             AdsEntryPoint::class.java
         ).adsManager()
     }
+    val subscriptionRepository = remember {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            AdsEntryPoint::class.java
+        ).subscriptionRepository()
+    }
+    val subscriptionState by subscriptionRepository.observe().collectAsState()
+
+    if (subscriptionState.isPremium) return
 
     AndroidView(
         modifier = modifier.fillMaxWidth(),

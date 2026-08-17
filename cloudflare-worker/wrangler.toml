@@ -5,9 +5,13 @@ compatibility_date = "2025-01-01"
 # Secrets (never put real values here - set them via `wrangler secret put`):
 #   wrangler secret put PLACES_API_KEY
 #   wrangler secret put MAPS_API_KEY
+#   wrangler secret put PLAY_SERVICE_ACCOUNT_JSON   # Google Play service-account JSON (billing verify)
 #
 # The Android app never holds these keys. It calls this Worker's public URL instead;
 # the Worker attaches the real key server-side and forwards the request to Google.
+#
+# Note: ALLOWED_APP_ID below is the value the app sends in the X-WarmWord-App-Id header
+# (see app BillingConfig.APP_ID). They MUST match or every /billing/verify call is rejected.
 
 [vars]
 # Comma-separated list of Android package names / app check tokens allowed to call this

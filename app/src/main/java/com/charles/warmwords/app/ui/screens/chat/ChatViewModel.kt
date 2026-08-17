@@ -10,7 +10,9 @@ import com.charles.warmwords.app.ai.Persona
 import com.charles.warmwords.app.ai.SystemPrompt
 import com.charles.warmwords.app.ai.TextToSpeechManager
 import com.charles.warmwords.app.analytics.AnalyticsManager
+import com.charles.warmwords.app.billing.SubscriptionState
 import com.charles.warmwords.app.data.model.ChatMessageModel
+import com.charles.warmwords.app.domain.repository.SubscriptionRepository
 import com.charles.warmwords.app.domain.usecase.ChatUseCases
 import com.charles.warmwords.app.domain.usecase.UserProfileUseCases
 import com.charles.warmwords.app.util.ModelConfig
@@ -44,6 +46,7 @@ class ChatViewModel @Inject constructor(
     private val userProfileUseCases: UserProfileUseCases,
     private val textToSpeechManager: TextToSpeechManager,
     private val analyticsManager: AnalyticsManager,
+    private val subscriptionRepository: SubscriptionRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -63,7 +66,21 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             userProfileUseCases.profile.collect { profile ->
                 val personaId = profile?.selectedPersonaId
-                val persona = SystemPrompt.byId(personaId)
+                val requestedPersona = SystemPrompt.byId(personaId)
+                // If a premium persona was selected but the subscription is no longer active
+                // (e.g. lapsed), fall back to the free companion and persist the reset.
+                val persona = if (requestedPersona.isPremium && !subscriptionRepository.getState().isPremium) {
+                    if (personaId != SystemPrompt.DEFAULT_PERSONA.id) {
+                        profile?.let {
+                            userProfileUseCases.updateProfile(
+                                it.copy(selectedPersonaId = SystemPrompt.DEFAULT_PERSONA.id)
+                            )
+                        }
+                    }
+                    SystemPrompt.DEFAULT_PERSONA
+                } else {
+                    requestedPersona
+                }
                 _uiState.value = _uiState.value.copy(
                     voiceRepliesEnabled = profile?.voiceRepliesEnabled == true,
                     persona = persona

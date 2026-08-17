@@ -13,7 +13,9 @@ import com.charles.warmwords.app.ai.TextToSpeechManager
 import com.charles.warmwords.app.ai.WarmVoice
 import com.charles.warmwords.app.analytics.AnalyticsManager
 import com.charles.warmwords.app.ads.AdsPreferences
+import com.charles.warmwords.app.billing.SubscriptionState
 import com.charles.warmwords.app.data.local.entity.UserProfile
+import com.charles.warmwords.app.domain.repository.SubscriptionRepository
 import com.charles.warmwords.app.domain.usecase.ChatUseCases
 import com.charles.warmwords.app.domain.usecase.JournalUseCases
 import com.charles.warmwords.app.domain.usecase.UserProfileUseCases
@@ -38,7 +40,8 @@ data class SettingsUiState(
     val modelDownloaded: Boolean = false,
     val modelSizeBytes: Long = 0L,
     val journalCount: Int = 0,
-    val availableVoices: List<WarmVoice> = emptyList()
+    val availableVoices: List<WarmVoice> = emptyList(),
+    val subscription: SubscriptionState = SubscriptionState()
 )
 
 @HiltViewModel
@@ -49,6 +52,7 @@ class SettingsViewModel @Inject constructor(
     private val textToSpeechManager: TextToSpeechManager,
     private val analyticsManager: AnalyticsManager,
     private val adsPreferences: AdsPreferences,
+    private val subscriptionRepository: SubscriptionRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -63,14 +67,16 @@ class SettingsViewModel @Inject constructor(
 
     val uiState: StateFlow<SettingsUiState> = combine(
         userProfileUseCases.profile,
-        textToSpeechManager.isReady
-    ) { profile, ttsReady ->
+        textToSpeechManager.isReady,
+        subscriptionRepository.observe()
+    ) { profile, ttsReady, subscription ->
         val modelDownloaded = profile?.modelDownloaded ?: false
         SettingsUiState(
             profile = profile,
             modelDownloaded = modelDownloaded,
             modelSizeBytes = if (modelDownloaded) ModelConfig.MODEL_TOTAL_BYTES else 0L,
-            availableVoices = if (ttsReady) textToSpeechManager.availableVoices() else emptyList()
+            availableVoices = if (ttsReady) textToSpeechManager.availableVoices() else emptyList(),
+            subscription = subscription
         )
     }.stateIn(viewModelScope, SharingStarted.Lazily, SettingsUiState())
 
@@ -119,6 +125,14 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setPersona(personaId: String) {
+        val persona = SystemPrompt.byId(personaId)
+        if (persona.isPremium && !uiState.value.subscription.isPremium) {
+            analyticsManager.logEvent(
+                AnalyticsManager.EVENT_PREMIUM_FEATURE_ATTEMPTED,
+                mapOf(AnalyticsManager.PARAM_PERSONA_ID to personaId)
+            )
+            return
+        }
         viewModelScope.launch {
             val existing = userProfileUseCases.getProfile() ?: UserProfile()
             userProfileUseCases.updateProfile(existing.copy(selectedPersonaId = personaId))
