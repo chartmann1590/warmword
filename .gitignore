@@ -16,3 +16,8 @@ keystore.properties
 cloudflare-worker/node_modules/
 cloudflare-worker/.wrangler/
 cloudflare-worker/.dev.vars
+
+# Play service account keys - never commit
+play-service-account.json
+play-creds/warmword-play-billing.json
+

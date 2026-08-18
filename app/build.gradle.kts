@@ -41,13 +41,22 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.charles.warmwords.app"
+        applicationId = "com.charles.warmwords"
         minSdk = 31
         targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = rootProject.file("play-creds/upload-key.jks")
+            storePassword = localProps.getProperty("UPLOAD_STORE_PASSWORD")
+            keyAlias = localProps.getProperty("UPLOAD_KEY_ALIAS", "warmword")
+            keyPassword = localProps.getProperty("UPLOAD_KEY_PASSWORD")
+        }
     }
 
     buildTypes {
@@ -57,6 +66,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
