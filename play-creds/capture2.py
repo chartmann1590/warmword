@@ -2,7 +2,7 @@ import os, re, subprocess, time, tempfile
 from PIL import Image
 
 DEVICE = "37220DLJG001ML"
-PKG = "com.charles.warmwords.app"
+PKG = "com.charles.warmwords"
 OUT = r"H:\psyc-app\play-assets\screenshots\phone"
 os.makedirs(OUT, exist_ok=True)
 ADB = r"C:\Users\Charles\AppData\Local\Android\Sdk\platform-tools\adb.exe"

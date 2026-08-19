@@ -37,7 +37,7 @@ if (hasFirebaseConfig) {
 }
 
 android {
-    namespace = "com.charles.warmwords.app"
+    namespace = "com.charles.warmwords"
     compileSdk = 37
 
     defaultConfig {
