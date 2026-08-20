@@ -35,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.charles.warmwords.ui.components.TranslatedText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -107,7 +108,7 @@ fun JournalScreen(
                         modifier = Modifier.size(56.dp)
                     )
                     Spacer(Modifier.height(12.dp))
-                    Text(
+                    TranslatedText(
                         text = "No journal entries yet.\nTap + to write your first one.",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -122,7 +123,7 @@ fun JournalScreen(
                     .weight(1f),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
+                TranslatedText(
                     text = "No entries match \"$query\"",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -188,7 +189,7 @@ private fun JournalAppBar(
             OutlinedTextField(
                 value = query,
                 onValueChange = onQueryChange,
-                placeholder = { Text("Search entries...") },
+                placeholder = { TranslatedText("Search entries...") },
                 singleLine = true,
                 shape = RoundedCornerShape(24.dp),
                 modifier = Modifier.weight(1f)
@@ -202,7 +203,7 @@ private fun JournalAppBar(
                 )
             }
         } else {
-            Text(
+            TranslatedText(
                 text = "Journal",
                 style = MaterialTheme.typography.displaySmall,
                 color = MaterialTheme.colorScheme.primary
@@ -346,10 +347,10 @@ fun AddJournalDialog(
         containerColor = MaterialTheme.colorScheme.surface,
         titleContentColor = MaterialTheme.colorScheme.onSurface,
         textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        title = { Text("New Journal Entry") },
+            title = { TranslatedText("New Journal Entry") },
         text = {
             Column {
-                Text("How are you feeling?", style = MaterialTheme.typography.bodyMedium)
+                TranslatedText("How are you feeling?", style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(8.dp))
                 MoodSelector(
                     score = moodScore,
@@ -360,7 +361,7 @@ fun AddJournalDialog(
                 OutlinedTextField(
                     value = content,
                     onValueChange = { content = it },
-                    label = { Text("Write your thoughts...") },
+                    label = { TranslatedText("Write your thoughts...") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(120.dp),
@@ -378,12 +379,12 @@ fun AddJournalDialog(
                 },
                 enabled = content.isNotBlank()
             ) {
-                Text("Save")
+                    TranslatedText("Save")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                    TranslatedText("Cancel")
             }
         }
     )

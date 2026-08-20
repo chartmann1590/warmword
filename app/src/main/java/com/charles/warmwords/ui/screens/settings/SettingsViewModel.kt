@@ -19,6 +19,8 @@ import com.charles.warmwords.domain.repository.SubscriptionRepository
 import com.charles.warmwords.domain.usecase.ChatUseCases
 import com.charles.warmwords.domain.usecase.JournalUseCases
 import com.charles.warmwords.domain.usecase.UserProfileUseCases
+import com.charles.warmwords.translation.TranslationDownloadState
+import com.charles.warmwords.translation.TranslationManager
 import com.charles.warmwords.util.ModelConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -53,6 +55,7 @@ class SettingsViewModel @Inject constructor(
     private val analyticsManager: AnalyticsManager,
     private val adsPreferences: AdsPreferences,
     private val subscriptionRepository: SubscriptionRepository,
+    private val translationManager: TranslationManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -62,6 +65,13 @@ class SettingsViewModel @Inject constructor(
     fun setPersonalizedAdsEnabled(enabled: Boolean) {
         adsPreferences.setPersonalizedAdsEnabled(enabled)
     }
+
+    val translationLanguage: StateFlow<String> = translationManager.targetLanguage
+    val translationDownloadState: StateFlow<TranslationDownloadState> = translationManager.downloadState
+
+    fun selectLanguage(code: String) = translationManager.selectLanguage(code)
+
+    fun retryTranslationDownload() = translationManager.retryLanguageDownload()
 
     val personas: List<Persona> = SystemPrompt.PERSONAS
 
@@ -85,6 +95,7 @@ class SettingsViewModel @Inject constructor(
             chatUseCases.deleteAll()
             journalUseCases.deleteAll()
             userProfileUseCases.deleteAll()
+            translationManager.deleteCurrentModel()
 
             val modelDir = File(
                 context.getExternalFilesDir(null),

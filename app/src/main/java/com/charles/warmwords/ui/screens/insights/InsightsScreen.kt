@@ -45,8 +45,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.charles.warmwords.ui.components.Text
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import com.charles.warmwords.data.model.SessionReminderModel
+import com.charles.warmwords.ui.components.TranslatedText
 import com.charles.warmwords.ui.theme.WarmOrange
 import com.charles.warmwords.ui.theme.WarmTeal
 import java.text.SimpleDateFormat
@@ -199,7 +200,7 @@ fun InsightsScreen(
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
                     ) {
-                        Text(
+                        TranslatedText(
                             text = tag,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -533,7 +534,7 @@ fun SessionItem(
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(
+                    TranslatedText(
                         text = session.preview,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -587,7 +588,7 @@ fun SessionItem(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text(
+                        TranslatedText(
                             text = note,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface,

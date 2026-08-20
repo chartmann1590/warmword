@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,8 +25,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.TextButton
+import com.charles.warmwords.ui.components.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -44,6 +46,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.charles.warmwords.R
+import com.charles.warmwords.translation.SupportedLanguages
+import com.charles.warmwords.translation.TranslationDownloadState
 import com.charles.warmwords.ui.components.Avatar
 import com.charles.warmwords.ui.components.AvatarState
 import com.charles.warmwords.ui.components.DisclaimerBanner
@@ -75,7 +79,157 @@ fun OnboardingScreen(
         when (page) {
             0 -> WelcomePage(viewModel)
             1 -> DownloadPage(viewModel)
-            2 -> ProfilePage(viewModel, onOnboardingComplete)
+            2 -> LanguagePage(viewModel)
+            3 -> ProfilePage(viewModel, onOnboardingComplete)
+        }
+    }
+}
+
+@Composable
+private fun LanguagePage(viewModel: OnboardingViewModel) {
+    val uiState by viewModel.uiState.collectAsState()
+    val downloadState = uiState.translationDownloadState
+
+    val ready = uiState.selectedLanguage == "en" || downloadState is TranslationDownloadState.Ready
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(Modifier.height(32.dp))
+
+        Text(
+            text = "Choose a language",
+            style = MaterialTheme.typography.displaySmall,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        Text(
+            text = "WarmWord always works in English. Pick one additional language and " +
+                "the whole app — every menu, button and reply — is translated on your device automatically.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .fillMaxWidth()
+        ) {
+            LanguageRow(
+                name = "English",
+                detail = "No translation",
+                selected = uiState.selectedLanguage == "en",
+                onClick = { viewModel.selectLanguage("en") }
+            )
+            SupportedLanguages.TRANSLATABLE.forEach { language ->
+                LanguageRow(
+                    name = language.displayName(),
+                    detail = "${language.code} · on-device",
+                    selected = uiState.selectedLanguage == language.code,
+                    onClick = { viewModel.selectLanguage(language.code) }
+                )
+            }
+        }
+
+        if (uiState.selectedLanguage != "en") {
+            when (downloadState) {
+                is TranslationDownloadState.Downloading -> {
+                    Spacer(Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Downloading translation model (few MB, one time)...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                is TranslationDownloadState.Ready -> {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Translation model ready",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+                is TranslationDownloadState.Error -> {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Couldn't download the translation model. Check your connection and try again.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    TextButton(onClick = { viewModel.selectLanguage(uiState.selectedLanguage) }) {
+                        Text("Retry", color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+                TranslationDownloadState.Idle -> Unit
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Button(
+            onClick = { viewModel.nextPage() },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            enabled = ready
+        ) {
+            Text(
+                text = "Continue",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(vertical = 12.dp)
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun LanguageRow(
+    name: String,
+    detail: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 4.dp)
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Spacer(Modifier.width(8.dp))
+        Column {
+            Text(
+                text = name,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

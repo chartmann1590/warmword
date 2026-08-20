@@ -28,12 +28,14 @@ plugins {
     alias(libs.plugins.hilt.application)
     alias(libs.plugins.google.services) apply false
     alias(libs.plugins.firebase.crashlytics) apply false
+    alias(libs.plugins.firebase.perf) apply false
     kotlin("kapt")
 }
 
 if (hasFirebaseConfig) {
     apply(plugin = "com.google.gms.google-services")
     apply(plugin = "com.google.firebase.crashlytics")
+    apply(plugin = "com.google.firebase.firebase-perf")
 }
 
 android {
@@ -115,6 +117,12 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    lint {
+        // PropertyEscape falsely flags org.gradle.java.home=C\:/... in gradle.properties even
+        // when properly escaped (the suggestion it prints is exactly what's already in the file).
+        disable += "PropertyEscape"
+    }
 }
 
 dependencies {
@@ -147,6 +155,11 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.analytics)
+    implementation(libs.firebase.perf)
+
+    // ML Kit on-device translation (en -> user-selected language) + language identification
+    implementation(libs.mlkit.translate)
+    implementation(libs.mlkit.language.id)
 
     // AdMob (banner + interstitial advertising)
     implementation(libs.play.services.ads)

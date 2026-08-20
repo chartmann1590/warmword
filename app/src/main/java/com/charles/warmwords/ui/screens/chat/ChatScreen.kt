@@ -58,6 +58,7 @@ import com.charles.warmwords.ui.components.AdBanner
 import com.charles.warmwords.ui.components.Avatar
 import com.charles.warmwords.ui.components.AvatarState
 import com.charles.warmwords.ui.components.ChatFooterDisclaimer
+import com.charles.warmwords.ui.components.TranslatedText
 import java.util.Locale
 
 @Composable
@@ -126,13 +127,13 @@ private fun ChatHeader(viewModel: ChatViewModel) {
         )
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(
+            TranslatedText(
                 text = "WarmWord",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
+                TranslatedText(
                     text = if (uiState.isModelReady) uiState.persona.displayName else "Loading model...",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f)
@@ -209,7 +210,7 @@ private fun EmptyChatState(greeting: String, modifier: Modifier = Modifier) {
     ) {
         Avatar(state = AvatarState.IDLE, size = 80.dp)
         Spacer(Modifier.height(16.dp))
-        Text(
+        TranslatedText(
             text = greeting,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -271,10 +272,11 @@ private fun ModelMessageBubble(content: String, isStreaming: Boolean) {
                 )
                 .padding(12.dp, 8.dp)
         ) {
-            Text(
+            TranslatedText(
                 text = content,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                enabled = !isStreaming
             )
             if (isStreaming) {
                 Box(
@@ -322,7 +324,7 @@ private fun TypingIndicator() {
                     if (it < 2) Spacer(Modifier.width(4.dp))
                 }
                 Spacer(Modifier.width(8.dp))
-                Text(
+                TranslatedText(
                     text = "typing...",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
@@ -381,7 +383,7 @@ private fun ChatInputBar(
             value = text,
             onValueChange = { text = it },
             placeholder = {
-                Text(
+                TranslatedText(
                     text = if (isModelReady) "Type a message..." else "Loading model...",
                     style = MaterialTheme.typography.bodyMedium
                 )

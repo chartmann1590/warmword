@@ -77,6 +77,10 @@ class AnalyticsManager @Inject constructor(
         const val EVENT_DATA_EXPORTED = "data_exported"
         const val EVENT_DATA_DELETED = "data_deleted"
 
+        // Translation events - language code only, never translated text
+        const val EVENT_LANGUAGE_CHANGED = "language_changed"
+        const val EVENT_TRANSLATION_MODEL_READY = "translation_model_ready"
+
         // Subscription / monetization events
         const val EVENT_SUBSCRIPTION_PURCHASED = "subscription_purchased"
         const val EVENT_PAYWALL_SHOWN = "paywall_shown"
@@ -85,5 +89,6 @@ class AnalyticsManager @Inject constructor(
         const val PARAM_PERSONA_ID = "persona_id"
         const val PARAM_SCREEN = "screen"
         const val PARAM_PRODUCT_ID = "product_id"
+        const val PARAM_LANGUAGE = "language"
     }
 }

@@ -12,6 +12,7 @@ import com.charles.warmwords.domain.usecase.MoodUseCases
 import com.charles.warmwords.domain.usecase.SessionNoteUseCases
 import com.charles.warmwords.domain.usecase.SessionReminderUseCases
 import com.charles.warmwords.reminders.ReminderScheduler
+import com.charles.warmwords.translation.TranslationManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,7 +51,8 @@ class InsightsViewModel @Inject constructor(
     private val sessionReminderUseCases: SessionReminderUseCases,
     private val sessionNoteUseCases: SessionNoteUseCases,
     private val liteRtLmManager: LiteRtLmManager,
-    private val reminderScheduler: ReminderScheduler
+    private val reminderScheduler: ReminderScheduler,
+    private val translationManager: TranslationManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<InsightsUiState>(InsightsUiState())
@@ -279,10 +281,17 @@ class InsightsViewModel @Inject constructor(
 
     fun scheduleReminder(timestamp: Long, label: String) {
         viewModelScope.launch {
+            // Only the app's default reminder label is app-generated English worth
+            // translating; custom labels the user typed are kept verbatim.
+            val finalLabel = if (label == DEFAULT_REMINDER_LABEL) {
+                translationManager.translate(DEFAULT_REMINDER_LABEL)
+            } else {
+                label
+            }
             val id = sessionReminderUseCases.addReminder(
-                SessionReminderModel(timestamp = timestamp, label = label)
+                SessionReminderModel(timestamp = timestamp, label = finalLabel)
             )
-            reminderScheduler.schedule(id, timestamp, label)
+            reminderScheduler.schedule(id, timestamp, finalLabel)
         }
     }
 
@@ -300,5 +309,6 @@ class InsightsViewModel @Inject constructor(
 
     companion object {
         private const val PAGE_SIZE = 5
+        private const val DEFAULT_REMINDER_LABEL = "Check in with WarmWord"
     }
 }

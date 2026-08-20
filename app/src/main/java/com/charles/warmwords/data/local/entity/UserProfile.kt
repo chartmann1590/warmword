@@ -14,5 +14,6 @@ data class UserProfile(
     val lowRamWarningShown: Boolean = false,
     val voiceRepliesEnabled: Boolean = false,
     val selectedPersonaId: String = "warm_companion",
-    val selectedVoiceName: String? = null
+    val selectedVoiceName: String? = null,
+    val translationLanguageCode: String? = null
 )

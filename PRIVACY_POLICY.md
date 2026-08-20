@@ -52,14 +52,30 @@ manufacturer's or Google's speech-recognition servers rather than WarmWord's
 own servers (WarmWord does not operate any servers of its own). Review the
 transcribed text before sending; it is never sent anywhere until you tap Send.
 
-## 4. Crash reports & anonymous usage analytics
+## 4. Crash reports, performance & anonymous usage analytics
 
-WarmWord uses **Firebase Crashlytics** and **Firebase Analytics** to catch bugs
-and understand which features are used. These only ever receive anonymous event
-names (such as "message sent" or "persona changed") and crash stack traces —
-never your chat content, journal text, or anything you have typed.
+WarmWord uses **Firebase Crashlytics**, **Firebase Analytics**, and **Firebase
+Performance Monitoring** to catch bugs, understand which features are used, and
+measure app performance.
 
-## 5. Subscriptions
+These services only receive anonymous event names (such as "message sent" or
+"persona changed"), crash stack traces, and anonymous timing data (how long a
+model download or an AI reply took) — never your chat content, journal text, or
+anything you have typed.
+
+## 5. On-device translation
+
+If you choose a translation language in **Settings** (or during onboarding),
+WarmWord's replies are converted with **Google's on-device ML Kit translator**,
+which runs on your phone.
+
+A small translation model (from a few MB up to roughly 40 MB, depending on the
+language) is downloaded once over your network connection. The text is processed
+entirely on the device — nothing you type or read is ever sent to a server for
+translation, and translations are stored only in a temporary local cache on
+your phone.
+
+## 6. Subscriptions
 
 If you upgrade to **WarmWord Premium**, the purchase is handled entirely by
 **Google Play** and billed to your Google Play account. Google Play is the
@@ -71,7 +87,7 @@ by WarmWord's developer, which checks the purchase with Google's servers using
 the Google Play Developer API. You can manage or cancel your subscription at any
 time in Google Play.
 
-## 6. Network access
+## 7. Network access
 
 Besides the items above, the only network access WarmWord uses is:
 
@@ -84,12 +100,12 @@ If a future update adds live nearby-provider search, that request is routed
 through a Cloudflare Worker proxy controlled by WarmWord's developer, so no API
 key for that service is ever stored inside the app.
 
-## 7. Your rights & controls
+## 8. Your rights & controls
 
 You can **export** or **permanently delete** all of your data at any time from
 **Settings**.
 
-## 8. Contact
+## 9. Contact
 
 For privacy questions, contact the WarmWord developer via the app's support
 channel.

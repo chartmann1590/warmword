@@ -10,6 +10,8 @@ import com.charles.warmwords.ai.DownloadWorkerInput
 import com.charles.warmwords.ai.ModelDownloadWorker
 import com.charles.warmwords.data.local.entity.UserProfile
 import com.charles.warmwords.domain.usecase.UserProfileUseCases
+import com.charles.warmwords.translation.TranslationDownloadState
+import com.charles.warmwords.translation.TranslationManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,12 +26,15 @@ data class OnboardingUiState(
     val downloadError: String? = null,
     val isComplete: Boolean = false,
     val showLowRamWarning: Boolean = false,
-    val name: String = ""
+    val name: String = "",
+    val selectedLanguage: String = "en",
+    val translationDownloadState: TranslationDownloadState = TranslationDownloadState.Idle
 )
 
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
     private val userProfileUseCases: UserProfileUseCases,
+    private val translationManager: TranslationManager,
     private val workManager: WorkManager,
     @Named("modelDownloadUrl") private val modelDownloadUrl: String,
     @Named("modelSha256") private val modelSha256: String,
@@ -43,6 +48,17 @@ class OnboardingViewModel @Inject constructor(
     init {
         Log.d("OnboardingVM", "Init - url=$modelDownloadUrl, file=$modelFileName, total=$modelTotalBytes")
         startModelDownload()
+        viewModelScope.launch {
+            val stored = userProfileUseCases.getProfile()?.translationLanguageCode
+            if (!stored.isNullOrBlank()) {
+                _uiState.value = _uiState.value.copy(selectedLanguage = stored.lowercase())
+            }
+        }
+        viewModelScope.launch {
+            translationManager.downloadState.collect { state ->
+                _uiState.value = _uiState.value.copy(translationDownloadState = state)
+            }
+        }
     }
 
     private fun startModelDownload() {
@@ -117,9 +133,15 @@ class OnboardingViewModel @Inject constructor(
 
     fun nextPage() {
         val currentPage = _uiState.value.currentPage
-        if (currentPage < 2) {
+        if (currentPage < 3) {
             _uiState.value = _uiState.value.copy(currentPage = currentPage + 1)
         }
+    }
+
+    /** Selects the translation language (blank/"en" = no translation). */
+    fun selectLanguage(code: String) {
+        _uiState.value = _uiState.value.copy(selectedLanguage = code.lowercase())
+        translationManager.selectLanguage(code)
     }
 
     fun previousPage() {

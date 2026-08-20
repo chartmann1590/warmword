@@ -29,6 +29,7 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.RecordVoiceOver
+import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -42,8 +43,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.charles.warmwords.ui.components.Text
+import com.charles.warmwords.ui.components.TranslatedText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -60,6 +62,9 @@ import androidx.compose.ui.unit.dp
 import com.charles.warmwords.R
 import com.charles.warmwords.ai.Persona
 import com.charles.warmwords.ai.WarmVoice
+import com.charles.warmwords.translation.DisplayLanguage
+import com.charles.warmwords.translation.SupportedLanguages
+import com.charles.warmwords.translation.TranslationDownloadState
 import com.charles.warmwords.ui.components.DisclaimerBanner
 import com.charles.warmwords.util.ModelConfig
 import java.io.File
@@ -81,6 +86,10 @@ fun SettingsScreen(
     var showDeleteConfirm by rememberSaveable { mutableStateOf(false) }
     var showPersonaPicker by rememberSaveable { mutableStateOf(false) }
     var showVoicePicker by rememberSaveable { mutableStateOf(false) }
+    var showLanguagePicker by rememberSaveable { mutableStateOf(false) }
+
+    val translationLanguage by viewModel.translationLanguage.collectAsState()
+    val translationDownloadState by viewModel.translationDownloadState.collectAsState()
 
     Column(
         modifier = modifier
@@ -199,6 +208,42 @@ fun SettingsScreen(
             SettingItem(
                 title = "Stored locally",
                 value = if (uiState.modelDownloaded) "Yes" else "No"
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        CardSection(title = "Translation") {
+            val currentLanguage = SupportedLanguages.byCode(translationLanguage)
+            val languageName = if (translationLanguage.isBlank() || translationLanguage == "en") {
+                "English"
+            } else {
+                currentLanguage?.displayName() ?: translationLanguage
+            }
+            val value = when (translationDownloadState) {
+                is TranslationDownloadState.Downloading -> "$languageName • downloading model…"
+                is TranslationDownloadState.Ready -> "$languageName • ready"
+                is TranslationDownloadState.Error -> "Download failed — tap to retry"
+                TranslationDownloadState.Idle -> if (languageName == "English") "Off — app stays in English" else languageName
+            }
+            SettingItem(
+                title = "App language",
+                value = value,
+                icon = Icons.Rounded.Translate,
+                onClick = {
+                    if (translationDownloadState is TranslationDownloadState.Error) {
+                        viewModel.retryTranslationDownload()
+                    } else {
+                        showLanguagePicker = true
+                    }
+                }
+            )
+            Text(
+                text = "The whole app — every menu, button and screen — is translated on your device and never leaves your phone. " +
+                    "Translations may occasionally be imperfect.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
             )
         }
 
@@ -349,6 +394,15 @@ fun SettingsScreen(
             onDismiss = { showVoicePicker = false }
         )
     }
+
+    if (showLanguagePicker) {
+        LanguagePickerDialog(
+            languages = SupportedLanguages.TRANSLATABLE,
+            selectedCode = translationLanguage,
+            onSelect = { viewModel.selectLanguage(it) },
+            onDismiss = { showLanguagePicker = false }
+        )
+    }
 }
 
 @Composable
@@ -406,6 +460,71 @@ private fun PersonaPickerDialog(
                 }
                 Text(
                     text = "Switching personality starts a fresh conversation.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f),
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Done") }
+        }
+    )
+}
+
+@Composable
+private fun LanguagePickerDialog(
+    languages: List<DisplayLanguage>,
+    selectedCode: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        title = { Text("App language") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text(
+                    text = "Choose the language the whole app is shown in. Picking a non-English language downloads a small on-device model and translates every menu and screen.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.8f),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelect("en") }
+                        .padding(vertical = 10.dp)
+                ) {
+                    RadioButton(
+                        selected = selectedCode.isBlank() || selectedCode == "en",
+                        onClick = { onSelect("en") }
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text("English (no translation)", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                }
+                languages.forEach { language ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(language.code) }
+                            .padding(vertical = 10.dp)
+                    ) {
+                        RadioButton(
+                            selected = selectedCode == language.code,
+                            onClick = { onSelect(language.code) }
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(language.displayName(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                    }
+                }
+                Text(
+                    text = "Translations are generated on-device and may occasionally be imperfect.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f),
                     modifier = Modifier.padding(top = 8.dp)
@@ -569,11 +688,18 @@ private fun PrivacyPolicyDialog(onDismiss: () -> Unit) {
                         "has none). Review the transcribed text before sending; it's never sent anywhere " +
                         "until you tap Send.\n\n" +
 
-                        "Crash reports & anonymous usage: WarmWord uses Firebase Crashlytics and Analytics " +
-                        "to catch bugs and see which features are used. These only ever receive anonymous " +
-                        "event names (like \"message sent\" or \"persona changed\") and crash stack traces - " +
+                        "Crash reports & anonymous usage: WarmWord uses Firebase Crashlytics, Analytics, " +
+                        "and Performance Monitoring to catch bugs, see which features are used, and measure " +
+                        "app speed. These only ever receive anonymous event names (like \"message sent\" or " +
+                        "\"persona changed\"), crash stack traces, and anonymous timing data - " +
                         "never your chat content, journal text, or anything you've typed. You can see exactly " +
                         "what's collected in Google's Firebase privacy documentation.\n\n" +
+
+                        "Translation: if you choose a translation language in Settings, WarmWord's replies " +
+                        "are converted with Google's on-device ML Kit translator running on your phone. A " +
+                        "small language model (a few to ~40 MB) is downloaded once, and the text you read " +
+                        "is processed entirely on the device - nothing you type or read is ever sent to a " +
+                        "server for translation.\n\n" +
 
                         "Subscriptions: if you upgrade to WarmWord Premium, the purchase is handled entirely " +
                         "by Google Play and billed to your Google Play account. Google Play is the merchant of " +

@@ -15,6 +15,8 @@ import com.charles.warmwords.data.model.ChatMessageModel
 import com.charles.warmwords.domain.repository.SubscriptionRepository
 import com.charles.warmwords.domain.usecase.ChatUseCases
 import com.charles.warmwords.domain.usecase.UserProfileUseCases
+import com.charles.warmwords.performance.PerformanceManager
+import com.charles.warmwords.translation.TranslationManager
 import com.charles.warmwords.util.ModelConfig
 import com.charles.warmwords.util.isLowRamDevice
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -47,6 +49,8 @@ class ChatViewModel @Inject constructor(
     private val textToSpeechManager: TextToSpeechManager,
     private val analyticsManager: AnalyticsManager,
     private val subscriptionRepository: SubscriptionRepository,
+    private val translationManager: TranslationManager,
+    private val performanceManager: PerformanceManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -180,12 +184,14 @@ class ChatViewModel @Inject constructor(
             Log.d("ChatViewModel", "sendMessage: isTyping set to true, calling streamMessage")
 
             try {
-                liteRtLmManager.streamMessage(text).collect { chunk ->
-                    currentModelMessage = currentModelMessage.copy(
-                        content = currentModelMessage.content + chunk,
-                        isStreaming = true
-                    )
-                    chatUseCases.saveMessage(currentModelMessage)
+                performanceManager.traceSuspend(PerformanceManager.TRACE_AI_STREAM) {
+                    liteRtLmManager.streamMessage(text).collect { chunk ->
+                        currentModelMessage = currentModelMessage.copy(
+                            content = currentModelMessage.content + chunk,
+                            isStreaming = true
+                        )
+                        chatUseCases.saveMessage(currentModelMessage)
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "sendMessage: streamMessage error", e)
@@ -196,6 +202,11 @@ class ChatViewModel @Inject constructor(
                     currentModelMessage.copy(isStreaming = false)
                 )
                 _uiState.value = _uiState.value.copy(isTyping = false)
+                if (currentModelMessage.content.isNotBlank()) {
+                    // Prime the on-device translation cache with the finished reply so
+                    // the bubble swaps immediately (and only once, never mid-stream).
+                    viewModelScope.launch { translationManager.translate(currentModelMessage.content) }
+                }
                 if (_uiState.value.voiceRepliesEnabled && currentModelMessage.content.isNotBlank()) {
                     textToSpeechManager.speak(currentModelMessage.content)
                 }
@@ -227,11 +238,13 @@ class ChatViewModel @Inject constructor(
             lastKnownPersonaId = persona.id
             _uiState.value = _uiState.value.copy(persona = persona)
             val isLowRam = context.isLowRamDevice()
-            val success = if (isLowRam) {
-                _uiState.value = _uiState.value.copy(showLowRamError = true)
-                liteRtLmManager.reinitializeWithCpu(modelPath, persona.systemPrompt)
-            } else {
-                liteRtLmManager.initialize(modelPath, persona.systemPrompt)
+            val success = performanceManager.traceSuspend(PerformanceManager.TRACE_AI_INIT) {
+                if (isLowRam) {
+                    _uiState.value = _uiState.value.copy(showLowRamError = true)
+                    liteRtLmManager.reinitializeWithCpu(modelPath, persona.systemPrompt)
+                } else {
+                    liteRtLmManager.initialize(modelPath, persona.systemPrompt)
+                }
             }
             _uiState.value = _uiState.value.copy(
                 isModelReady = success,

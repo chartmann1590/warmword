@@ -28,7 +28,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.charles.warmwords.ui.components.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.charles.warmwords.data.local.entity.CrisisResource
 import com.charles.warmwords.ui.components.DisclaimerBanner
+import com.charles.warmwords.ui.components.TranslatedText
 import com.charles.warmwords.R
 
 @Composable
@@ -222,7 +223,7 @@ fun CrisisResourceItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (resource.description.isNotBlank()) {
-                    Text(
+                    TranslatedText(
                         text = resource.description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f)
@@ -296,7 +297,7 @@ fun ProviderItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (resource.description.isNotBlank()) {
-                    Text(
+                    TranslatedText(
                         text = resource.description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f)

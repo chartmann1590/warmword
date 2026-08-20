@@ -6,12 +6,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Text
+import com.charles.warmwords.ui.components.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.charles.warmwords.R
+import com.charles.warmwords.ui.components.TranslatedText
 import com.charles.warmwords.ui.navigation.Screen
 
 data class BottomNavItem(
@@ -53,7 +54,7 @@ fun WarmWordBottomBar(
                     )
                 },
                 label = {
-                    Text(
+                    TranslatedText(
                         text = item.label,
                         style = MaterialTheme.typography.labelSmall,
                         color = if (selected) MaterialTheme.colorScheme.primary

@@ -12,7 +12,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,6 +27,10 @@ import androidx.navigation.compose.rememberNavController
 import com.charles.warmwords.data.local.entity.UserProfile
 import com.charles.warmwords.ads.AdsManager
 import com.charles.warmwords.domain.usecase.UserProfileUseCases
+import com.charles.warmwords.translation.TranslationDownloadState
+import com.charles.warmwords.translation.TranslationManager
+import com.charles.warmwords.ui.components.LocalAppTranslation
+import com.charles.warmwords.ui.components.TranslationContext
 import com.charles.warmwords.ui.navigation.WarmWordBottomBar
 import com.charles.warmwords.ui.navigation.WarmWordNavGraph
 import com.charles.warmwords.ui.navigation.Screen
@@ -43,6 +49,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var adsManager: AdsManager
 
+    @Inject
+    lateinit var translationManager: TranslationManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         enableEdgeToEdge()
@@ -52,6 +61,7 @@ class MainActivity : ComponentActivity() {
             WarmWordTheme {
                 WarmWordApp(
                     userProfileUseCases = userProfileUseCases,
+                    translationManager = translationManager,
                     onBeforeNavigate = { target, current ->
                         adsManager.maybeShowInterstitial(this, target.route, current)
                     }
@@ -64,6 +74,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun WarmWordApp(
     userProfileUseCases: UserProfileUseCases,
+    translationManager: TranslationManager,
     onBeforeNavigate: (Screen, String) -> Unit = { _, _ -> }
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -85,41 +96,51 @@ fun WarmWordApp(
     val navItems = bottomNavItems.filter { !it.screen.route.startsWith("onboarding") }
 
     WarmWordTheme {
-        Scaffold(
-            bottomBar = {
-                if (showBottomBar && currentRoute != Screen.Onboarding.route) {
-                    WarmWordBottomBar(
-                        items = navItems,
-                        currentRoute = currentRoute,
-                        onNavigate = { screen ->
-                            onBeforeNavigate(screen, currentRoute)
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.startDestinationId) {
-                                    saveState = true
+        val targetLanguage by translationManager.targetLanguage.collectAsState()
+        val downloadState by translationManager.downloadState.collectAsState()
+        CompositionLocalProvider(
+            LocalAppTranslation provides TranslationContext(
+                manager = translationManager,
+                targetCode = targetLanguage,
+                downloadState = downloadState
+            )
+        ) {
+            Scaffold(
+                bottomBar = {
+                    if (showBottomBar && currentRoute != Screen.Onboarding.route) {
+                        WarmWordBottomBar(
+                            items = navItems,
+                            currentRoute = currentRoute,
+                            onNavigate = { screen ->
+                                onBeforeNavigate(screen, currentRoute)
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.startDestinationId) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
                             }
-                        }
+                        )
+                    }
+                },
+                snackbarHost = { SnackbarHost(snackbarHostState) }
+            ) { padding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                        .padding(padding)
+                ) {
+                    WarmWordNavGraph(
+                        navController = navController,
+                        startDestination = startDestination,
+                        onOnboardingComplete = {
+                            showBottomBar = true
+                        },
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
-            },
-            snackbarHost = { SnackbarHost(snackbarHostState) }
-        ) { padding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-                    .padding(padding)
-            ) {
-                WarmWordNavGraph(
-                    navController = navController,
-                    startDestination = startDestination,
-                    onOnboardingComplete = {
-                        showBottomBar = true
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
             }
         }
     }
