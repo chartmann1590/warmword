@@ -68,7 +68,8 @@ jobs:
     - name: Emulator test (no Google Play services, like Fire)
       uses: reactivecircus/android-emulator-runner@v2
       with:
-        api-level: 30
+        # minSdk is 31 (Android 12), so the test runs on API 31. Fire OS 8 is Android 11 (API 30): see "left".
+        api-level: 31
         profile: Nexus 7 2013
         target: default
         arch: x86_64
