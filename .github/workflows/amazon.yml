@@ -46,6 +46,8 @@ jobs:
           [ -n "$BILLING_VERIFY_URL" ] && echo "BILLING_VERIFY_URL=$BILLING_VERIFY_URL"
           true
         } > local.properties
+        # gradle.properties pins org.gradle.java.home to a Windows JDK path; drop it on the CI runner only.
+        sed -i '/^org.gradle.java.home/d' gradle.properties
         chmod +x gradlew
         ./gradlew --no-daemon :app:assembleRelease -Pstore=amazon -x lintVitalRelease --stacktrace 2>&1 | tee -a /tmp/amz-build.log
         mkdir -p amz-apk
