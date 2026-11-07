@@ -14,10 +14,21 @@ wait 60
 wait 60
 wait 60
 shot 02d-download-7m
-taploop (?i)^(next|continue|get started|skip|skip for now|allow|ok|accept|agree|got it|start|i agree|not now|later|maybe later|no thanks|done|finish|english|no translation|while using the app|only this time)$
+tap (?i)^no translation$
+wait 2
+tap (?i)^continue$
+wait 4
+shot 03-name
+tap (?i)^enter your name$
+wait 1
+type Alex
+wait 1
+tap (?i)^finish$
+wait 5
+taploop (?i)^(next|continue|get started|skip|skip for now|allow|ok|accept|agree|got it|start|i agree|not now|later|maybe later|no thanks|done|finish|while using the app|only this time)$
 wait 5
 adclose
-taploop (?i)^(next|continue|get started|skip|skip for now|allow|ok|accept|agree|got it|start|i agree|not now|later|maybe later|no thanks|done|finish|english|no translation|while using the app|only this time)$
+taploop (?i)^(next|continue|get started|skip|skip for now|allow|ok|accept|agree|got it|start|i agree|not now|later|maybe later|no thanks|done|finish|while using the app|only this time)$
 wait 3
 adclose
 shot 04-main
