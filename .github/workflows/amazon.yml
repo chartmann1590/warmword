@@ -1,0 +1,92 @@
+name: Amazon Appstore build + emulator test
+# Amazon Appstore (Fire) build of WarmWord: same code, built with -Pstore=amazon (no Google Play
+# Billing, no WarmWord Premium / paywall, no Google Play links). Free + ads. Run on a tablet-size emulator
+# without Google Play services (like Fire). Branch builds only make a DRAFT release; nothing is uploaded to any store.
+on:
+  push:
+    branches: [amazon]
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency:
+  group: amazon-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  amazon:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: "21"
+    - uses: gradle/actions/setup-gradle@v4
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        packages: platform-tools
+    - name: Build amazon APK (store=amazon)
+      env:
+        ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
+        ADMOB_BANNER_AD_UNIT_ID: ${{ secrets.ADMOB_BANNER_AD_UNIT_ID }}
+        ADMOB_INTERSTITIAL_AD_UNIT_ID: ${{ secrets.ADMOB_INTERSTITIAL_AD_UNIT_ID }}
+        BILLING_VERIFY_URL: ${{ secrets.BILLING_VERIFY_URL }}
+      run: |
+        set -o pipefail
+        # The upload key (play-creds/upload-key.jks) is not in the repo or its secrets: sign with a throwaway CI key
+        # so the emulator can install the build. The Amazon submission must be signed with Charles's real key.
+        keytool -genkeypair -keystore play-creds/upload-key.jks -storepass cipass1 -keypass cipass1 -alias warmword -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=CI test, O=Hartmann Studios"
+        {
+          echo "sdk.dir=$ANDROID_HOME"
+          echo "UPLOAD_STORE_PASSWORD=cipass1"; echo "UPLOAD_KEY_ALIAS=warmword"; echo "UPLOAD_KEY_PASSWORD=cipass1"
+          [ -n "$ADMOB_APP_ID" ] && echo "ADMOB_APP_ID=$ADMOB_APP_ID"
+          [ -n "$ADMOB_BANNER_AD_UNIT_ID" ] && echo "ADMOB_BANNER_AD_UNIT_ID=$ADMOB_BANNER_AD_UNIT_ID"
+          [ -n "$ADMOB_INTERSTITIAL_AD_UNIT_ID" ] && echo "ADMOB_INTERSTITIAL_AD_UNIT_ID=$ADMOB_INTERSTITIAL_AD_UNIT_ID"
+          [ -n "$BILLING_VERIFY_URL" ] && echo "BILLING_VERIFY_URL=$BILLING_VERIFY_URL"
+          true
+        } > local.properties
+        chmod +x gradlew
+        ./gradlew --no-daemon :app:assembleRelease -Pstore=amazon -x lintVitalRelease --stacktrace 2>&1 | tee -a /tmp/amz-build.log
+        mkdir -p amz-apk
+        cp "$(ls app/build/outputs/apk/release/*.apk | grep -v unsigned | head -1)" amz-apk/WarmWord-amazon-release.apk
+        ls -la amz-apk
+        BT=$ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -V | tail -1)
+        $BT/apksigner verify --print-certs amz-apk/WarmWord-amazon-release.apk | head -3 || true
+        $BT/aapt2 dump badging amz-apk/WarmWord-amazon-release.apk | head -3 || true
+        echo "--- Play Store URL strings left in the amazon release dex:"; unzip -p amz-apk/WarmWord-amazon-release.apk 'classes*.dex' | strings | grep -E "play\.google\.com/store|market://" | head || true
+    - name: Ship build log tail to the private drop (on failure)
+      if: failure()
+      env:
+        DROP_KEY: ${{ secrets.DROP_KEY }}
+      run: |
+        tail -c 60000 /tmp/amz-build.log 2>/dev/null | curl -s -m 60 -X PUT -H "X-Key: $DROP_KEY" --data-binary @- "https://hs-apk-drop.charles-h-hartmann1.workers.dev/c/amzlog_${{ github.event.repository.name }}_r${{ github.run_number }}/0" || true
+    - name: Enable KVM
+      run: |
+        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+        sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+    - name: Emulator test (no Google Play services, like Fire)
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: 30
+        profile: Nexus 7 2013
+        target: default
+        arch: x86_64
+        ram-size: 3072M
+        disk-size: 4096M
+        emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+        disable-animations: true
+        script: bash .github/amazon/run-tests.sh
+    - name: Upload test results to Tab's private drop
+      if: always()
+      env:
+        DROP_KEY: ${{ secrets.DROP_KEY }}
+      run: bash .github/amazon/amazon-upload.sh /tmp/amz-out amz_WarmWord_r${{ github.run_number }}
+    - name: Draft release with the amazon APK (not published)
+      if: success()
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: amazon-${{ github.run_number }}
+        name: Amazon build ${{ github.run_number }} (${{ github.sha }})
+        draft: true
+        files: amz-apk/WarmWord-amazon-release.apk

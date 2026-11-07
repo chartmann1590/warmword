@@ -81,7 +81,8 @@ fun WarmWordNavGraph(
                 viewModel = settingsViewModel,
                 onPrivacyPolicyClick = { },
                 onNavigateToPaywall = {
-                    navController.navigate(Screen.Paywall.route)
+                    // Amazon Appstore build: no paywall (no Google Play Billing).
+                    if (!(com.charles.warmwords.BuildConfig.STORE == "amazon")) navController.navigate(Screen.Paywall.route)
                 }
             )
         }

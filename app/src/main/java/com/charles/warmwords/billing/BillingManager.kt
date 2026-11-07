@@ -63,6 +63,8 @@ class BillingManager @Inject constructor(
     private var isConnected = false
 
     fun connect() {
+        // Amazon Appstore build: Google Play Billing is never started (no Play on Fire; free + ads).
+        if (com.charles.warmwords.BuildConfig.STORE == "amazon") return
         if (isConnected) return
         billingClient.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(result: BillingResult) {
@@ -98,6 +100,7 @@ class BillingManager @Inject constructor(
     }
 
     fun launchBillingFlow(activity: Activity, productDetails: ProductDetails) {
+        if (com.charles.warmwords.BuildConfig.STORE == "amazon") return
         val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: return
         val params = BillingFlowParams.newBuilder()
             .setProductDetailsParamsList(
@@ -113,6 +116,7 @@ class BillingManager @Inject constructor(
     }
 
     fun restorePurchases() {
+        if (com.charles.warmwords.BuildConfig.STORE == "amazon") return
         if (!isConnected) return
         val params = QueryPurchasesParams.newBuilder()
             .setProductType(BillingClient.ProductType.SUBS)

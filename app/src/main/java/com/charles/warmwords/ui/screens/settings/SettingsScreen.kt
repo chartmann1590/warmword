@@ -104,48 +104,51 @@ fun SettingsScreen(
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        if (isPremium) {
-            CardSection(title = "Membership") {
-                SettingItem(
-                    title = "WarmWord Premium",
-                    value = "Ad-free · all personalities unlocked",
-                    icon = Icons.Rounded.Lock
-                )
-            }
-        } else {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigateToPaywall() },
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-            ) {
-                Row(
+        // Amazon Appstore build: no WarmWord Premium (no Google Play Billing), so no membership / upgrade card.
+        if (!(com.charles.warmwords.BuildConfig.STORE == "amazon")) {
+            if (isPremium) {
+                CardSection(title = "Membership") {
+                    SettingItem(
+                        title = "WarmWord Premium",
+                        value = "Ad-free · all personalities unlocked",
+                        icon = Icons.Rounded.Lock
+                    )
+                }
+            } else {
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .clickable { onNavigateToPaywall() },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                 ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            text = "Upgrade to Premium",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = "Go ad-free & unlock all personalities",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = "Upgrade to Premium",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = "Go ad-free & unlock all personalities",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(Icons.Rounded.ChevronRight, contentDescription = null)
                     }
-                    Icon(Icons.Rounded.ChevronRight, contentDescription = null)
                 }
             }
-        }
 
-        Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
+        }
 
         uiState.profile?.let { profile ->
             CardSection(title = "Profile") {
@@ -376,7 +379,8 @@ fun SettingsScreen(
 
     if (showPersonaPicker) {
         PersonaPickerDialog(
-            personas = viewModel.personas,
+            // Amazon Appstore build: Premium personalities are hidden (no Premium to unlock them).
+            personas = if (com.charles.warmwords.BuildConfig.STORE == "amazon") viewModel.personas.filter { !it.isPremium } else viewModel.personas,
             selectedId = uiState.profile?.selectedPersonaId ?: viewModel.personas.first().id,
             isPremium = isPremium,
             onSelect = { viewModel.setPersona(it) },
@@ -701,13 +705,13 @@ private fun PrivacyPolicyDialog(onDismiss: () -> Unit) {
                         "is processed entirely on the device - nothing you type or read is ever sent to a " +
                         "server for translation.\n\n" +
 
-                        "Subscriptions: if you upgrade to WarmWord Premium, the purchase is handled entirely " +
+                        (if (com.charles.warmwords.BuildConfig.STORE == "amazon") "" else "Subscriptions: if you upgrade to WarmWord Premium, the purchase is handled entirely " +
                         "by Google Play and billed to your Google Play account. Google Play is the merchant of " +
                         "record and processes your payment information; WarmWord does not receive or store your " +
                         "card details. Your subscription status is verified through a Cloudflare Worker that " +
                         "WarmWord's developer controls, which checks the purchase with Google's servers using " +
                         "the Google Play Developer API. You can manage or cancel your subscription anytime in " +
-                        "Google Play.\n\n" +
+                        "Google Play.\n\n") +
 
                         "Network access: besides the above, the only network access WarmWord uses is the " +
                         "one-time download of the AI model file, loading advertisements, and opening " +

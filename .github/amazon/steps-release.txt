@@ -1,0 +1,45 @@
+launch
+wait 15
+shot 01-launch
+taploop (?i)^(next|continue|get started|skip|skip for now|allow|ok|accept|agree|got it|start|i agree|not now|later|maybe later|no thanks|done|finish|english|no translation|while using the app|only this time)$
+wait 2
+shot 02-onboarding
+tap (?i)your name|enter your name
+type Charles
+back
+taploop (?i)^(next|continue|get started|skip|skip for now|allow|ok|accept|agree|got it|start|i agree|not now|later|maybe later|no thanks|done|finish|english|no translation|while using the app|only this time)$
+wait 5
+adclose
+shot 03-after-onboarding
+taploop (?i)^(next|continue|get started|skip|skip for now|allow|ok|accept|agree|got it|start|i agree|not now|later|maybe later|no thanks|done|finish|english|no translation|while using the app|only this time)$
+wait 3
+adclose
+shot 04-main
+tap (?i)^chat$
+wait 3
+shot 05-chat
+tap (?i)^journal$
+wait 3
+adclose
+shot 06-journal
+tap (?i)^insights$
+wait 3
+shot 07-insights
+tap (?i)^find help$
+wait 3
+shot 08-findhelp
+tap (?i)^settings$
+wait 3
+adclose
+shot 09-settings
+tap (?i)ai personality|companion|warm
+wait 2
+shot 10-personality
+back
+swipeup
+swipeup
+shot 11-settings-mid
+swipeup
+swipeup
+swipeup
+shot 12-settings-bottom
