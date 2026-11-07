@@ -37,6 +37,7 @@ shot 20-main
 tap (?i)^settings$
 wait 3
 adclose
+adclose
 tap (?i)^upgrade to premium$
 wait 4
 scrollto (?i)^restore purchases$

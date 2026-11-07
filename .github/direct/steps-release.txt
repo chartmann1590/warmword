@@ -45,13 +45,16 @@ shot 06-journal
 tap (?i)^insights$
 wait 3
 shot 07-insights
+adclose
 tap (?i)^find help$
 wait 3
 shot 08-findhelp
+adclose
 tap (?i)^settings$
 wait 3
 adclose
 shot 09-settings
+adclose
 tap (?i)^upgrade to premium$
 wait 4
 shot 10-paywall
