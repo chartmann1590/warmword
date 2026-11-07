@@ -13,6 +13,9 @@ wait 60
 wait 60
 wait 60
 shot 02d-download-7m
+tap (?i)^continue$
+wait 4
+shot 02e-language
 tap (?i)^no translation$
 wait 2
 tap (?i)^continue$
