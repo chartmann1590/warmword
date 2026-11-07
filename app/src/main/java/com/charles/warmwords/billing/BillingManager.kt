@@ -13,6 +13,7 @@ import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
 import com.charles.warmwords.analytics.AnalyticsManager
+import com.hartmannstudios.direct.DirectBilling
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -52,10 +53,50 @@ class BillingManager @Inject constructor(
         }
     }
 
-    private val billingClient = BillingClient.newBuilder(applicationContext)
-        .setListener(purchasesUpdatedListener)
-        .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
-        .build()
+    // Lazy: direct (non-Play) builds never create a Google Play BillingClient.
+    private val billingClient by lazy {
+        BillingClient.newBuilder(applicationContext)
+            .setListener(purchasesUpdatedListener)
+            .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
+            .build()
+    }
+
+    // ── Direct (GitHub / charleshartmann.com) build: Stripe Checkout through DirectBilling instead of Google Play ──
+    private val directListener: () -> Unit = { applyDirect() }
+
+    private fun applyDirect() {
+        val owned = DirectBilling.entitlements().firstOrNull { it in DIRECT_KEYS }
+        val state = SubscriptionState(isPremium = owned != null, productId = owned)
+        val wasPremium = entitlementStore.getState().isPremium
+        entitlementStore.save(state)
+        if (state.isPremium && !wasPremium) {
+            analyticsManager.logEvent(
+                AnalyticsManager.EVENT_SUBSCRIPTION_PURCHASED,
+                mapOf(AnalyticsManager.PARAM_PRODUCT_ID to (owned ?: ""))
+            )
+        }
+    }
+
+    /** Direct builds: Stripe Checkout for [productKey] (DIRECT_MONTHLY or DIRECT_YEARLY). */
+    fun launchDirect(activity: Activity, productKey: String) {
+        if (DirectBilling.isDirect) DirectBilling.purchase(activity, productKey)
+    }
+
+    /** Direct builds: look up a Stripe purchase by email (new phone, reinstall). */
+    fun restoreDirect(activity: Activity) {
+        if (DirectBilling.isDirect) DirectBilling.restore(activity)
+    }
+
+    /** Direct builds: Stripe customer portal. */
+    fun manageDirect(activity: Activity) {
+        if (DirectBilling.isDirect) DirectBilling.manageSubscription(activity)
+    }
+
+    companion object {
+        const val DIRECT_MONTHLY = "warmword_premium:monthly"
+        const val DIRECT_YEARLY = "warmword_premium:yearly"
+        private val DIRECT_KEYS = setOf(DIRECT_MONTHLY, DIRECT_YEARLY)
+    }
 
     private val _productDetails = MutableStateFlow<List<ProductDetails>>(emptyList())
     val productDetails: StateFlow<List<ProductDetails>> = _productDetails.asStateFlow()
@@ -64,6 +105,13 @@ class BillingManager @Inject constructor(
 
     fun connect() {
         if (isConnected) return
+        if (DirectBilling.isDirect) {
+            isConnected = true
+            DirectBilling.init(applicationContext, "warmword")
+            DirectBilling.addListener(directListener)
+            applyDirect()
+            return
+        }
         billingClient.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(result: BillingResult) {
                 if (result.responseCode == BillingClient.BillingResponseCode.OK) {
@@ -98,6 +146,7 @@ class BillingManager @Inject constructor(
     }
 
     fun launchBillingFlow(activity: Activity, productDetails: ProductDetails) {
+        if (DirectBilling.isDirect) return
         val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: return
         val params = BillingFlowParams.newBuilder()
             .setProductDetailsParamsList(
@@ -113,6 +162,7 @@ class BillingManager @Inject constructor(
     }
 
     fun restorePurchases() {
+        if (DirectBilling.isDirect) { applyDirect(); return }
         if (!isConnected) return
         val params = QueryPurchasesParams.newBuilder()
             .setProductType(BillingClient.ProductType.SUBS)

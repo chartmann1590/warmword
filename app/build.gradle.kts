@@ -39,10 +39,17 @@ if (hasFirebaseConfig) {
 }
 
 android {
+    // DirectBilling: real Stripe client in direct builds, a no-op stub in Play builds (java + kotlin dirs: AGP 9 built-in Kotlin reads kotlin dirs)
+    val hsBillingDir = if (((project.findProperty("store") as String?) ?: "play") == "direct") "src/hsdirect/java" else "src/hsplay/java"
+    sourceSets.getByName("main").java.srcDir(hsBillingDir)
+    sourceSets.getByName("main").kotlin.srcDir(hsBillingDir)
     namespace = "com.charles.warmwords"
     compileSdk = 37
 
     defaultConfig {
+        // Store this build is for: "play" (default) or "direct" (./gradlew ... -Pstore=direct, GitHub/charleshartmann.com APK).
+        // Direct builds use Stripe Checkout (DirectBilling) instead of Google Play Billing, and drop Play links + the Play review prompt.
+        buildConfigField("String", "STORE", "\"${(project.findProperty("store") as String?) ?: "play"}\"")
         applicationId = "com.charles.warmwords"
         minSdk = 31
         targetSdk = 36

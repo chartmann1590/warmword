@@ -111,6 +111,10 @@ fun SettingsScreen(
                     value = "Ad-free · all personalities unlocked",
                     icon = Icons.Rounded.Lock
                 )
+                // Direct (non-Play) builds: the paywall screen carries Manage subscription (Stripe portal).
+                if (com.hartmannstudios.direct.DirectBilling.isDirect) {
+                    TextButton(onClick = { onNavigateToPaywall() }) { Text("Manage subscription") }
+                }
             }
         } else {
             Card(

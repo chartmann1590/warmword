@@ -43,12 +43,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.android.billingclient.api.ProductDetails
+import com.charles.warmwords.billing.BillingManager
+import com.hartmannstudios.direct.DirectBilling
+import androidx.compose.material3.Button
 import com.charles.warmwords.ui.components.DisclaimerBanner
 
 private val PREMIUM_BENEFITS = listOf(
     "Ad-free — no banners or interruptions, ever",
     "All 5 AI personalities, including CBT Coach, Mindful Guide, Motivator & Quiet Listener",
-    "Cancel anytime through Google Play"
+    if (DirectBilling.isDirect) "Cancel anytime with Manage subscription" else "Cancel anytime through Google Play"
 )
 
 @Composable
@@ -128,16 +131,38 @@ fun PaywallScreen(
                         )
                         Spacer(Modifier.height(8.dp))
                         TextButton(onClick = {
-                            context.startActivity(
-                                Intent(
-                                    Intent.ACTION_VIEW,
-                                    Uri.parse("https://play.google.com/store/account/subscriptions")
+                            if (DirectBilling.isDirect) {
+                                (context as? Activity)?.let { viewModel.manageDirect(it) }
+                            } else {
+                                context.startActivity(
+                                    Intent(
+                                        Intent.ACTION_VIEW,
+                                        Uri.parse("https://play.google.com/store/account/subscriptions")
+                                    )
                                 )
-                            )
+                            }
                         }) {
                             Text("Manage subscription")
                         }
                     }
+                }
+            } else if (DirectBilling.isDirect) {
+                // Direct (GitHub / charleshartmann.com) build: Stripe Checkout instead of Google Play.
+                DirectPlanCard("Monthly", "$2.99 / month") { (context as? Activity)?.let { viewModel.purchaseDirect(it, BillingManager.DIRECT_MONTHLY) } }
+                Spacer(Modifier.height(12.dp))
+                DirectPlanCard("Yearly", "$19.99 / year") { (context as? Activity)?.let { viewModel.purchaseDirect(it, BillingManager.DIRECT_YEARLY) } }
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = { (context as? Activity)?.let { viewModel.restoreDirect(it) } },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Restore purchases")
+                }
+                TextButton(
+                    onClick = { (context as? Activity)?.let { viewModel.manageDirect(it) } },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Manage subscription")
                 }
             } else {
                 if (products.isEmpty()) {
@@ -165,7 +190,8 @@ fun PaywallScreen(
 
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "Subscriptions auto-renew via Google Play and can be cancelled anytime in your Play Store account settings.",
+                text = if (DirectBilling.isDirect) "Prices in USD. Secure checkout by Stripe. Subscriptions auto-renew until cancelled; cancel anytime with Manage subscription. Your purchase is tied to the email you enter at checkout."
+                else "Subscriptions auto-renew via Google Play and can be cancelled anytime in your Play Store account settings.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -186,6 +212,21 @@ private fun PaywallTopBar(onNavigateBack: () -> Unit) {
             }
         }
     )
+}
+
+@Composable
+private fun DirectPlanCard(title: String, price: String, onSubscribe: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(text = "WarmWord Premium · $title", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Text(text = price, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(12.dp))
+            Button(onClick = onSubscribe, modifier = Modifier.fillMaxWidth()) {
+                Text("Subscribe $title")
+            }
+        }
+    }
 }
 
 @Composable

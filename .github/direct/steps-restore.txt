@@ -1,0 +1,41 @@
+launch
+wait 15
+tap (?i)^get started$
+wait 5
+shot 02-model-download
+wait 60
+wait 60
+shot 02b-download-2m
+wait 60
+wait 60
+shot 02c-download-4m
+wait 60
+wait 60
+wait 60
+shot 02d-download-7m
+taploop (?i)^(next|continue|get started|skip|skip for now|allow|ok|accept|agree|got it|start|i agree|not now|later|maybe later|no thanks|done|finish|english|no translation|while using the app|only this time)$
+wait 5
+adclose
+taploop (?i)^(next|continue|get started|skip|skip for now|allow|ok|accept|agree|got it|start|i agree|not now|later|maybe later|no thanks|done|finish|english|no translation|while using the app|only this time)$
+wait 3
+adclose
+shot 20-main
+tap (?i)^settings$
+wait 3
+adclose
+tap (?i)^upgrade to premium$
+wait 4
+scrollto (?i)^restore purchases$
+wait 3
+shot 21-restore-email
+type hartmannstudios@mail.tab.bot
+tap (?i)^continue$
+wait 15
+shot 22-after-restore
+swipedown
+swipedown
+shot 23-paywall-premium
+back
+wait 3
+shot 24-settings-premium
+sh logcat -d -s DirectBilling

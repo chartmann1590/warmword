@@ -31,6 +31,10 @@ class PaywallViewModel @Inject constructor(
         billingManager.launchBillingFlow(activity, productDetails)
     }
 
+    fun purchaseDirect(activity: Activity, productKey: String) = billingManager.launchDirect(activity, productKey)
+    fun restoreDirect(activity: Activity) = billingManager.restoreDirect(activity)
+    fun manageDirect(activity: Activity) = billingManager.manageDirect(activity)
+
     fun restore() {
         viewModelScope.launch { subscriptionRepository.restore() }
     }
