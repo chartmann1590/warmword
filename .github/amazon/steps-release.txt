@@ -50,12 +50,17 @@ tap (?i)^settings$
 wait 3
 adclose
 shot 09-settings
-swipeup
-swipeup
+sh input swipe 600 1300 600 450 400
+wait 1
+sh input swipe 600 1300 600 450 400
+wait 1
 shot 11-settings-mid
-swipeup
-swipeup
-swipeup
+sh input swipe 600 1300 600 450 400
+wait 1
+sh input swipe 600 1300 600 450 400
+wait 1
+sh input swipe 600 1300 600 450 400
+wait 1
 shot 12-settings-bottom
 tap (?i)premium|upgrade|go pro
 wait 2
