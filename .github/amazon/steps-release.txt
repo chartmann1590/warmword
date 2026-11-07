@@ -41,10 +41,13 @@ wait 3
 adclose
 shot 06-journal
 tap (?i)^insights$
-wait 3
+wait 8
+adclose
+adclose
 shot 07-insights
 tap (?i)^find help$
-wait 3
+wait 8
+adclose
 shot 08-findhelp
 tap (?i)^settings$
 wait 3
