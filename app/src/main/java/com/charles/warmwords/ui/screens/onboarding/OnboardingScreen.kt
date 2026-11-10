@@ -21,6 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -345,6 +346,13 @@ private fun DownloadPage(viewModel: OnboardingViewModel) {
                 style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.Center
             )
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { viewModel.retryDownload() },
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text(text = "Retry download", style = MaterialTheme.typography.titleSmall)
+            }
             Spacer(Modifier.height(12.dp))
         }
 
@@ -367,7 +375,12 @@ private fun DownloadPage(viewModel: OnboardingViewModel) {
         Spacer(Modifier.height(16.dp))
 
         Text(
-            text = if (uiState.isDownloading) "Downloading..." else "Ready!",
+            text = when {
+                uiState.downloadError != null -> "Download stopped"
+                uiState.isComplete -> "Ready!"
+                uiState.isDownloading -> "Downloading..."
+                else -> "Preparing download..."
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -376,13 +389,13 @@ private fun DownloadPage(viewModel: OnboardingViewModel) {
 
         Button(
             onClick = {
-                if (!uiState.isDownloading && uiState.downloadProgress >= 1.0f) {
+                if (uiState.isComplete && uiState.downloadError == null) {
                     viewModel.nextPage()
                 }
             },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            enabled = !uiState.isDownloading && uiState.downloadProgress >= 1.0f
+            enabled = uiState.isComplete && uiState.downloadError == null
         ) {
             Text(
                 text = "Continue",

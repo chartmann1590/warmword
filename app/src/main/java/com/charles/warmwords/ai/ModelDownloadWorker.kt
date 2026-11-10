@@ -14,6 +14,7 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import com.charles.warmwords.R
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
@@ -110,7 +111,8 @@ class ModelDownloadWorker(
                             val actualSha256 = computeSha256(finalFile)
                             if (actualSha256 != expectedSha256) {
                                 Log.e(TAG, "SHA-256 mismatch on existing file: expected=$expectedSha256, actual=$actualSha256")
-                                throw IOException("SHA-256 checksum verification failed for existing file")
+                                finalFile.delete()
+                                throw IOException("The saved model was damaged. Tap Retry to download it again.")
                             }
                             Log.d(TAG, "SHA-256 verification passed for existing file")
                         }
@@ -121,25 +123,46 @@ class ModelDownloadWorker(
                         )
                      }
 
-                    val downloadedBytes = downloadWithResume(
-                        url = modelUrl,
-                        outputFile = tmpFile,
-                        existingBytes = tmpFile.length(),
-                        totalBytes = totalBytes
-                    )
-
-                    if (downloadedBytes < 0) {
-                        throw IOException("Download failed")
+                    // A dropped connection ("unexpected end of stream") is common on a 2.5 GB download:
+                    // retry up to MAX_ATTEMPTS times, resuming from the bytes already on disk.
+                    var downloadedBytes = -1L
+                    var lastError: IOException? = null
+                    for (attempt in 1..MAX_ATTEMPTS) {
+                        try {
+                            downloadedBytes = downloadWithResume(
+                                url = modelUrl,
+                                outputFile = tmpFile,
+                                existingBytes = tmpFile.length(),
+                                totalBytes = totalBytes
+                            )
+                            lastError = null
+                            break
+                        } catch (e: IOException) {
+                            lastError = e
+                            Log.w(TAG, "Download attempt $attempt/$MAX_ATTEMPTS failed at ${tmpFile.length()} bytes: ${e.message}")
+                            if (attempt < MAX_ATTEMPTS) delay(RETRY_DELAYS_MS[attempt - 1])
+                        }
+                    }
+                    if (lastError != null) {
+                        throw IOException("The download was interrupted (${lastError.message ?: lastError.javaClass.simpleName}). Check your connection and tap Retry.", lastError)
                     }
 
-                    tmpFile.renameTo(finalFile)
+                    if (downloadedBytes < 0 || (totalBytes > 0 && tmpFile.length() != totalBytes)) {
+                        throw IOException("The download didn't finish (${tmpFile.length()} of $totalBytes bytes). Tap Retry to resume.")
+                    }
+
+                    if (finalFile.exists()) finalFile.delete()
+                    if (!tmpFile.renameTo(finalFile)) {
+                        throw IOException("Couldn't save the model file. Check that your phone has free space and tap Retry.")
+                    }
                     Log.d(TAG, "Download complete: ${finalFile.absolutePath}")
 
                     if (expectedSha256 != null) {
                         val actualSha256 = computeSha256(finalFile)
                         if (actualSha256 != expectedSha256) {
                             Log.e(TAG, "SHA-256 mismatch: expected=$expectedSha256, actual=$actualSha256")
-                            throw IOException("SHA-256 checksum verification failed")
+                            finalFile.delete()
+                            throw IOException("The downloaded model was damaged. Tap Retry to download it again.")
                         }
                         Log.d(TAG, "SHA-256 verification passed")
                     }
@@ -181,11 +204,20 @@ class ModelDownloadWorker(
         connection.connect()
 
         val responseCode = connection.responseCode
+        if (responseCode == 416 && totalBytes > 0 && existingBytes >= totalBytes) {
+            // Range past the end: the file is already complete.
+            connection.disconnect()
+            return existingBytes
+        }
         if (responseCode != HttpURLConnection.HTTP_OK &&
             responseCode != HttpURLConnection.HTTP_PARTIAL
         ) {
+            connection.disconnect()
             throw IOException("HTTP error code: $responseCode")
         }
+        // The server ignored the Range header and sent the whole file: start the file over instead of appending.
+        val resumed = existingBytes > 0 && responseCode == HttpURLConnection.HTTP_PARTIAL
+        val startBytes = if (resumed) existingBytes else 0L
 
          val contentRange = connection.getHeaderField("Content-Range")
          var serverTotal = connection.contentLengthLong
@@ -204,13 +236,14 @@ class ModelDownloadWorker(
         }
 
         val inputStream: InputStream = connection.inputStream
-        val outputStream = FileOutputStream(outputFile, true)
+        val outputStream = FileOutputStream(outputFile, resumed)
 
         val buffer = ByteArray(8192)
         var bytesRead: Int
-        var totalDownloaded = existingBytes
+        var totalDownloaded = startBytes
         var lastProgressUpdate = 0L
 
+        try {
             while (inputStream.read(buffer).also { bytesRead = it } != -1) {
               outputStream.write(buffer, 0, bytesRead)
               totalDownloaded += bytesRead
@@ -239,11 +272,15 @@ class ModelDownloadWorker(
                 lastProgressUpdate = curTs
             }
         }
+        } finally {
+            try { outputStream.close() } catch (ignored: IOException) {}
+            try { inputStream.close() } catch (ignored: IOException) {}
+            connection.disconnect()
+        }
 
-        outputStream.close()
-        inputStream.close()
-        connection.disconnect()
-
+        if (serverTotal > 0 && totalDownloaded < serverTotal) {
+            throw IOException("unexpected end of stream at $totalDownloaded of $serverTotal bytes")
+        }
         return totalDownloaded
     }
 
@@ -304,5 +341,7 @@ class ModelDownloadWorker(
 
     companion object {
         private var channelCreated = false
+        private const val MAX_ATTEMPTS = 5
+        private val RETRY_DELAYS_MS = longArrayOf(3_000, 6_000, 12_000, 24_000)
     }
 }

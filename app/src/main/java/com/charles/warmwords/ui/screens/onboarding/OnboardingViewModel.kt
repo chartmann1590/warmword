@@ -5,17 +5,21 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.charles.warmwords.ai.DownloadWorkerInput
+import com.charles.warmwords.ai.DownloadWorkerOutput
 import com.charles.warmwords.ai.ModelDownloadWorker
 import com.charles.warmwords.data.local.entity.UserProfile
 import com.charles.warmwords.domain.usecase.UserProfileUseCases
 import com.charles.warmwords.translation.TranslationDownloadState
 import com.charles.warmwords.translation.TranslationManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Named
 
@@ -61,6 +65,8 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
+    private var downloadWatch: Job? = null
+
     private fun startModelDownload() {
         try {
             val workRequest = OneTimeWorkRequestBuilder<ModelDownloadWorker>()
@@ -74,36 +80,50 @@ class OnboardingViewModel @Inject constructor(
                 )
                 .build()
 
+            // KEEP: a download already running (screen rotated, app reopened) carries on instead of being
+            // cancelled and restarted; a finished or failed one is replaced by this new request.
             workManager.enqueueUniqueWork(
-                "model_download_work",
-                ExistingWorkPolicy.REPLACE,
+                MODEL_WORK_NAME,
+                ExistingWorkPolicy.KEEP,
                 workRequest
             )
             Log.d("OnboardingVM", "Work enqueued successfully")
 
-            viewModelScope.launch {
-                workManager.getWorkInfoByIdLiveData(workRequest.id).observeForever { info ->
-                    if (info != null) {
-                        val progressInt = info.progress.getInt("progress_percent", 0)
-                        val progress = progressInt / 100f
-                        Log.d("OnboardingVM", "WorkInfo received: state=${info.state}, progress=${progress}")
-                        _uiState.value = _uiState.value.copy(
-                            isDownloading = !info.state.isFinished,
-                            downloadProgress = progress
-                        )
-
-                        if (info.state.isFinished) {
-                            if (info.state == androidx.work.WorkInfo.State.FAILED) {
-                                val error = info.outputData.getString("download_error")
-                                _uiState.value = _uiState.value.copy(
-                                    downloadError = error ?: "Download failed. Please check your network connection."
-                                )
+            downloadWatch?.cancel()
+            downloadWatch = viewModelScope.launch {
+                workManager.getWorkInfosForUniqueWorkFlow(MODEL_WORK_NAME).collect { infos ->
+                    val info = infos.lastOrNull() ?: return@collect
+                    val progressInt = info.progress.getInt("progress_percent", 0)
+                    Log.d("OnboardingVM", "WorkInfo received: state=${info.state}, progress=$progressInt")
+                    when (info.state) {
+                        WorkInfo.State.SUCCEEDED -> {
+                            // Only "Ready" once the model file is really on the phone, complete.
+                            val path = info.outputData.getString(DownloadWorkerOutput.KEY_MODEL_PATH)
+                            val f = path?.let { File(it) }
+                            val present = f != null && f.exists() &&
+                                (modelTotalBytes <= 0 || f.length() == modelTotalBytes)
+                            _uiState.value = if (present) {
+                                _uiState.value.copy(isDownloading = false, isComplete = true, downloadError = null, downloadProgress = 1f)
                             } else {
-                                _uiState.value = _uiState.value.copy(
-                                    isComplete = true,
-                                    downloadProgress = 1f
-                                )
+                                _uiState.value.copy(isDownloading = false, isComplete = false,
+                                    downloadError = "The AI model didn't finish saving on your phone. Tap Retry to download it again.")
                             }
+                        }
+                        WorkInfo.State.FAILED, WorkInfo.State.CANCELLED -> {
+                            val error = info.outputData.getString(DownloadWorkerOutput.KEY_DOWNLOAD_ERROR)
+                            _uiState.value = _uiState.value.copy(
+                                isDownloading = false,
+                                isComplete = false,
+                                downloadError = error ?: "The download stopped. Check your connection and tap Retry."
+                            )
+                        }
+                        else -> {
+                            _uiState.value = _uiState.value.copy(
+                                isDownloading = true,
+                                isComplete = false,
+                                downloadError = null,
+                                downloadProgress = if (progressInt > 0) progressInt / 100f else _uiState.value.downloadProgress
+                            )
                         }
                     }
                 }
@@ -111,6 +131,8 @@ class OnboardingViewModel @Inject constructor(
         } catch (e: Exception) {
             Log.e("OnboardingVM", "Error starting model download", e)
             _uiState.value = _uiState.value.copy(
+                isDownloading = false,
+                isComplete = false,
                 downloadError = e.message ?: "Failed to start download: ${e.javaClass.simpleName}"
             )
         }
@@ -152,8 +174,12 @@ class OnboardingViewModel @Inject constructor(
     }
 
     fun retryDownload() {
-        _uiState.value = _uiState.value.copy(downloadError = null, isDownloading = true)
+        _uiState.value = _uiState.value.copy(downloadError = null, isDownloading = true, isComplete = false)
         startModelDownload()
+    }
+
+    private companion object {
+        const val MODEL_WORK_NAME = "model_download_work"
     }
 
     fun setShowLowRamWarning(value: Boolean) {
